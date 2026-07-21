@@ -57,6 +57,7 @@ st.set_page_config(
 from styles import inject_custom_css
 from components import render_ticker, render_hero
 from sidebar import render_sidebar
+from setup_wizard import is_setup_complete, render_setup_wizard
 from utils import _run_pipeline_in_thread
 from tabs.daily import render_daily_report
 from tabs.weekly import render_weekly_report
@@ -75,6 +76,10 @@ from tabs.email import render_email_tab
 def main():
     """대시보드 메인 함수."""
     inject_custom_css()
+
+    if not is_setup_complete() and not st.session_state.get("_setup_skipped"):
+        render_setup_wizard()
+        return
 
     settings = render_sidebar()
 
