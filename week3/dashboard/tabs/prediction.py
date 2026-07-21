@@ -6,8 +6,67 @@ from components import _html, espn_section
 from season_info import render_off_season_notice
 
 
+def _render_accuracy_section() -> None:
+    """
+    지금까지 판정된 과거 예측의 적중률을 보여준다. 판정 기록이 하나도
+    없으면 조용히 아무것도 그리지 않는다(예측 데이터 유무와 무관하게
+    항상 먼저 표시 — 리그가 비시즌이어도 과거 적중률은 볼 수 있어야 함).
+    """
+    from prediction_tracker import get_accuracy_summary, check_predictions
+
+    summary = get_accuracy_summary()
+
+    col_title, col_btn = st.columns([3, 1])
+    with col_btn:
+        if st.button("🔄 적중 판정 실행", help="지난 예측 중 경기가 끝난 것들을 실제 결과와 대조합니다 (최대 5건, API 제한으로 다소 걸릴 수 있음)"):
+            with st.spinner("실제 결과와 대조 중..."):
+                run_result = check_predictions(max_checks=5)
+            st.toast(
+                f"판정 완료: {run_result['judged']}건 새로 판정, {run_result['still_pending']}건 대기 중",
+                icon="✅",
+            )
+            st.rerun()
+
+    if summary["total"] == 0:
+        return
+
+    with col_title:
+        espn_section("📊", "예측 적중률", summary["total"])
+
+    acc = summary["accuracy_pct"]
+    acc_color = "#2E7D32" if acc >= 55 else ("#E65100" if acc >= 45 else "#CC0000")
+    _html(f"""
+<div style="background:#FFFFFF;border-radius:6px;padding:16px 20px;margin-bottom:12px;
+     box-shadow:0 1px 4px rgba(0,0,0,0.07);display:flex;align-items:center;gap:20px;">
+  <div style="font-family:'Oswald',sans-serif;font-size:32px;font-weight:800;color:{acc_color};">{acc}%</div>
+  <div style="font-size:13px;color:#666;">
+    총 {summary['total']}건 판정 · 적중 {summary['correct']}건<br>
+    <span style="font-size:11px;color:#999;">경기가 끝난 예측만 판정되며, 아직 안 끝난 경기는 다음 판정 때 확인됩니다.</span>
+  </div>
+</div>
+""")
+
+    if summary["by_league"]:
+        league_rows = "".join(
+            f'<tr><td>{lg}</td><td style="text-align:center;">{v["total"]}건</td>'
+            f'<td style="text-align:center;">{round(v["correct"]/v["total"]*100,1) if v["total"] else 0}%</td></tr>'
+            for lg, v in summary["by_league"].items()
+        )
+        _html(f"""
+<details style="margin-bottom:16px;">
+<summary style="cursor:pointer;font-size:12px;color:#888;">리그별 적중률 보기</summary>
+<table style="width:100%;font-size:12px;margin-top:8px;border-collapse:collapse;">
+<thead><tr style="color:#888;"><th style="text-align:left;">리그</th><th>판정 수</th><th>적중률</th></tr></thead>
+<tbody>{league_rows}</tbody>
+</table>
+</details>
+""")
+
+
 def render_prediction_tab(result: dict, league: str = "PL"):
     """경기 예측 탭 — 리그 시즌 여부 확인 후 예측 또는 개막일 표시."""
+    _render_accuracy_section()
+
     if render_off_season_notice(league, context="개막 후 분석을 실행하면 경기 예측이 표시됩니다."):
         return
 

@@ -865,6 +865,87 @@ Return ONLY valid JSON array, no markdown."""
 # 노드 ⑧: 경기 예측
 # =============================================
 
+def _parse_structured_predictions(text: str, upcoming: list[dict]) -> list[dict]:
+    """
+    LLM이 만든 자유 텍스트 예측을 구조화된 리스트로 파싱하고, upcoming_matches
+    와 팀명을 매칭해 match_id/경기 날짜를 붙인다.
+
+    예전엔 "**팀A vs 팀B**" 줄 하나만 저장해서 나중에 실제 결과와 자동으로
+    대조할 방법이 없었다. 이 함수는 예측 결과(홈승/무/원정승 표준값),
+    신뢰도, match_id까지 구조화해 week3/prediction_tracker.py가 나중에
+    실제 경기 결과와 비교할 수 있게 한다.
+
+    팀명 매칭이 실패하면(LLM이 placeholder를 그대로 썼거나 팀명 표기가
+    다르면) predicted_outcome/match_id는 None으로 남는다 — 이 경우 정확도
+    판정에서 조용히 건너뛴다.
+    """
+    preds: list[dict] = []
+    current: dict | None = None
+
+    def _finalize(entry: dict | None) -> None:
+        if not entry:
+            return
+        home, away = entry.get("home_team", ""), entry.get("away_team", "")
+        pred_text = entry.get("prediction_raw", "")
+
+        outcome = None
+        if "무승부" in pred_text:
+            outcome = "DRAW"
+        elif home and home in pred_text:
+            outcome = "HOME_TEAM"
+        elif away and away in pred_text:
+            outcome = "AWAY_TEAM"
+        entry["predicted_outcome"] = outcome
+
+        matched = None
+        for m in upcoming:
+            m_home, m_away = m.get("home_team_name", ""), m.get("away_team_name", "")
+            if home and away and m_home and m_away and (
+                (home == m_home and away == m_away)
+                or (home in m_home and away in m_away)
+                or (m_home in home and m_away in away)
+            ):
+                matched = m
+                break
+        if matched:
+            entry["match_id"] = matched.get("match_id")
+            entry["utc_date"] = matched.get("utc_date")
+        else:
+            entry["match_id"] = None
+            entry["utc_date"] = None
+
+        preds.append(entry)
+
+    for ln in text.split("\n"):
+        stripped = ln.strip()
+        if "vs" in stripped.lower() and "**" in stripped:
+            _finalize(current)
+            match_str = stripped.replace("**", "").strip(" -•")
+            idx = match_str.lower().find(" vs ")
+            if idx > 0:
+                home_team, away_team = match_str[:idx].strip(), match_str[idx + 4:].strip()
+            else:
+                home_team, away_team = "", ""
+            current = {
+                "match": match_str,
+                "home_team": home_team,
+                "away_team": away_team,
+                "prediction_raw": "",
+                "confidence": "",
+                "reason": "",
+            }
+        elif current is not None:
+            if stripped.startswith("- 예측:") or stripped.startswith("예측:"):
+                current["prediction_raw"] = stripped.split(":", 1)[-1].strip()
+            elif stripped.startswith("- 신뢰도:") or stripped.startswith("신뢰도:"):
+                current["confidence"] = stripped.split(":", 1)[-1].strip()
+            elif stripped.startswith("- 근거:") or stripped.startswith("근거:"):
+                current["reason"] = stripped.split(":", 1)[-1].strip()
+
+    _finalize(current)
+    return preds
+
+
 def match_prediction_node(state: FootballNewsState) -> dict:
     """
     다가오는 경기를 뉴스 감정 + 최근 경기 데이터 기반으로 예측합니다.
@@ -1074,11 +1155,7 @@ def match_prediction_node(state: FootballNewsState) -> dict:
                 text = resp.text
                 in_tok, out_tok = usage_from_gemini(resp)
 
-            preds = []
-            for ln in text.split("\n"):
-                if "vs" in ln.lower() and "**" in ln:
-                    match_str = ln.replace("**", "").strip(" -•")
-                    preds.append({"match": match_str, "details": ""})
+            preds = _parse_structured_predictions(text, upcoming)
 
             logger.info(f"[match_prediction_node] {api_type} 완료 | 경기 {len(preds)}건 예측")
             return {
