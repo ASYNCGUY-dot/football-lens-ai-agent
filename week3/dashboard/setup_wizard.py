@@ -33,11 +33,23 @@ NEWS_KEYS = [
 
 
 def _is_placeholder(value: str) -> bool:
-    """'your_..._here' 같은 .env.example 잔여 값인지 판별."""
+    """
+    'your_..._here'·'여기에_Anthropic_키' 같은 미입력 잔여 값인지 판별.
+
+    week2/llm_nodes.py의 _clean_api_key()와 같은 기준(비ASCII 문자 포함 시
+    플레이스홀더로 간주)을 추가했다 — 한글 placeholder는 실제 API 키로
+    httpx에 전달되면 헤더 인코딩 오류(UnicodeEncodeError)를 일으킨다.
+    """
     if not value:
         return True
-    v = value.strip().lower()
-    return v == "" or v.startswith("your_") or v in ("changeme", "xxx")
+    v = value.strip()
+    if v == "" or v.lower().startswith("your_") or v.lower() in ("changeme", "xxx"):
+        return True
+    try:
+        v.encode("ascii")
+    except UnicodeEncodeError:
+        return True
+    return len(v) < 10
 
 
 def is_setup_complete() -> bool:

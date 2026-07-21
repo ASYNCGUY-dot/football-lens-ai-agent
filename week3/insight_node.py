@@ -38,6 +38,29 @@ if WEEK2_PATH not in sys.path:
 from state import FootballNewsState
 
 
+def _clean_api_key(key: str | None) -> str:
+    """
+    환경변수에서 읽은 API 키를 정제합니다 (week2/llm_nodes.py와 동일 로직).
+    - 앞뒤 따옴표/공백 제거
+    - 한국어 등 비ASCII 문자 포함 시 빈 문자열 반환 (플레이스홀더 감지)
+    - 너무 짧은 값(<10자)은 빈 문자열 반환
+
+    이 검증 없이 httpx로 요청을 보내면, 플레이스홀더 값이 HTTP 헤더에 들어가면서
+    'ascii' codec can't encode characters ... 예외가 발생해 매번 폴백 경로를
+    타면서 트레이스백 로그만 남기게 된다.
+    """
+    if not key:
+        return ""
+    key = key.strip().strip('"').strip("'")
+    try:
+        key.encode("ascii")
+    except UnicodeEncodeError:
+        return ""
+    if len(key) < 10:
+        return ""
+    return key
+
+
 # =============================================
 # 프롬프트 생성 헬퍼
 # =============================================
@@ -231,7 +254,7 @@ def insight_node(state: FootballNewsState) -> dict:
         now_iso = datetime.now(timezone.utc).isoformat()
 
         # ── Claude API 시도 ────────────────────────────────
-        anthropic_key = os.getenv("ANTHROPIC_API_KEY", "")
+        anthropic_key = _clean_api_key(os.getenv("ANTHROPIC_API_KEY"))
         if anthropic_key:
             try:
                 import anthropic
@@ -253,7 +276,7 @@ def insight_node(state: FootballNewsState) -> dict:
                 logger.warning(f"[insight_node] Claude 오류, OpenAI로 폴백: {e}")
 
         # ── GPT-4o-mini 폴백 ──────────────────────────────
-        openai_key = os.getenv("OPENAI_API_KEY", "")
+        openai_key = _clean_api_key(os.getenv("OPENAI_API_KEY"))
         if openai_key:
             try:
                 from openai import OpenAI

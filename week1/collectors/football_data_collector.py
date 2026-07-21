@@ -711,38 +711,3 @@ if __name__ == "__main__":
 
     except ValueError as e:
         print(f"오류: {e}")
- "position":      p.get("position", ""),
-                    "nationality":   p.get("nationality", ""),
-                    "date_of_birth": p.get("dateOfBirth", "")[:10],
-                    "shirt_number":  p.get("shirtNumber"),
-                })
-            except Exception as e:
-                logger.warning(f"선수 파싱 오류: {e}")
-        logger.info(f"선수단 수집 완료 (team_id={team_id}): {len(squad)}명")
-        return squad
-
-
-# =============================================
-# 직접 실행 시 테스트
-# =============================================
-if __name__ == "__main__":
-    try:
-        collector = FootballDataCollector()
-
-        print("=== EPL 순위표 ===")
-        standings = collector.get_standings()
-        for team in standings[:5]:
-            print(f"{team['rank']}위 {team['team_name']:30s} {team['points']}점 ({team['won']}승 {team['draw']}무 {team['lost']}패)")
-
-        print("\n=== 최근 7일 경기 결과 ===")
-        matches = collector.get_recent_matches(days_back=7)
-        for m in matches[:5]:
-            print(f"[{m['utc_date'][:10]}] {m['home_team_name']} {m['home_score']}-{m['away_score']} {m['away_team_name']}")
-
-        print("\n=== 득점 순위 Top 5 ===")
-        scorers = collector.get_top_scorers(limit=5)
-        for s in scorers:
-            print(f"{s['rank']}위 {s['player_name']} ({s['team_name']}) - {s['goals']}골")
-
-    except ValueError as e:
-        print(f"오류: {e}")

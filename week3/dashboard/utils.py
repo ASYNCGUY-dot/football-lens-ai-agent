@@ -79,32 +79,45 @@ def load_pipeline_result(days_back: int, league: str) -> dict:
 
 
 
+def run_pipeline_and_save(days_back: int, league: str) -> dict:
+    """
+    파이프라인(수집~LLM 분석) + RAG/인사이트 노드를 실행하고 결과를 저장한다.
+
+    Streamlit 세션(스레드)뿐 아니라 week3/scheduler.py의 헤드리스 실행에서도
+    그대로 재사용하기 위해 _run_pipeline_in_thread에서 분리했다.
+    저장 실패는 파이프라인 자체를 막지 않고 경고 로그만 남긴다.
+    """
+    from week2.graph import run_pipeline
+    result = run_pipeline(
+        config={"days_back": days_back, "max_articles_per_source": 20, "league": league},
+        verbose=False,
+    ) or {}
+
+    try:
+        from week3.rag.rag_node import rag_search_node
+        from week3.insight_node import insight_node
+        result.update(rag_search_node(result))
+        result.update(insight_node(result))
+    except Exception as e:
+        result.setdefault("errors", []).append(f"RAG/인사이트 오류: {e}")
+
+    try:
+        from week3.storage.results_store import save_result
+        save_result(result)
+    except Exception as e:
+        logger.warning(f"결과 저장 실패: {e}")
+
+    return result
+
+
 def _run_pipeline_in_thread(days_back: int, league: str, result_queue: queue.Queue):
     """
-    백그라운드 스레드에서 파이프라인 전체를 실행합니다.
+    백그라운드 스레드에서 run_pipeline_and_save()를 실행합니다.
     완료되면 result_queue에 결과를 넣습니다.
     메인 스레드를 블록하지 않아 Streamlit WebSocket이 유지됩니다.
     """
     try:
-        from week2.graph import run_pipeline
-        result = run_pipeline(
-            config={"days_back": days_back, "max_articles_per_source": 20, "league": league},
-            verbose=False,
-        ) or {}
-        # RAG + 인사이트 노드도 스레드 안에서 실행
-        try:
-            from week3.rag.rag_node import rag_search_node
-            from week3.insight_node import insight_node
-            result.update(rag_search_node(result))
-            result.update(insight_node(result))
-        except Exception as e:
-            result.setdefault("errors", []).append(f"RAG/인사이트 오류: {e}")
-        try:
-            from week3.storage.results_store import save_result
-            save_result(result)
-        except Exception as e:
-            # 저장 실패가 파이프라인 자체를 막으면 안 됨 — 경고만 남기고 계속 진행
-            logger.warning(f"결과 저장 실패: {e}")
+        result = run_pipeline_and_save(days_back, league)
         result_queue.put(("ok", result))
     except Exception as e:
         logger.error(f"[백그라운드 파이프라인] 오류: {e}")
