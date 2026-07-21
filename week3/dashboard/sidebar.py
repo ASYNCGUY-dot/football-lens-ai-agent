@@ -70,10 +70,38 @@ def render_sidebar() -> dict:
             st.toast("캐시 초기화 완료", icon="✅")
             st.rerun()
 
+        # ── PDF 리포트 내보내기 ────────────────────────────────
+        result = st.session_state.get("pipeline_result")
+        if result:
+            if st.button("📄 PDF 리포트 생성", use_container_width=True,
+                          help="현재 화면의 분석 결과를 3페이지 PDF로 정리합니다"):
+                try:
+                    from pdf_report import generate_pdf_report
+                    report_league = (result.get("config") or {}).get("league", "PL")
+                    with st.spinner("PDF 생성 중..."):
+                        pdf_bytes = generate_pdf_report(result, report_league)
+                    st.session_state["_pdf_bytes"] = pdf_bytes
+                    st.session_state["_pdf_league"] = report_league
+                    st.toast("PDF 생성 완료", icon="✅")
+                except Exception as e:
+                    st.error(f"PDF 생성 실패: {e}")
+
+            if st.session_state.get("_pdf_bytes"):
+                fname = (
+                    f"football_lens_{st.session_state.get('_pdf_league','report')}"
+                    f"_{datetime.now().strftime('%Y%m%d')}.pdf"
+                )
+                st.download_button(
+                    "⬇️ PDF 다운로드",
+                    data=st.session_state["_pdf_bytes"],
+                    file_name=fname,
+                    mime="application/pdf",
+                    use_container_width=True,
+                )
+
         st.divider()
 
         # ── 파이프라인 상태 ───────────────────────────────────
-        result = st.session_state.get("pipeline_result")
         if result:
             arts = len(result.get("raw_articles", []))
             ko   = len(result.get("korean_articles", []))

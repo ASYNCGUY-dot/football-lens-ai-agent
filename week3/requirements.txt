@@ -39,3 +39,9 @@ jinja2==3.1.4                    # HTML 템플릿 렌더링
 # 유틸
 tqdm==4.66.4                     # 임베딩 진행률 표시
 schedule==1.2.2                  # scheduler.py 데몬 모드용 (매일 지정 시각 자동 실행)
+
+# PDF 리포트
+# Windows 시스템 폰트(맑은 고딕)를 직접 임베드하므로 별도 폰트 설치 불필요.
+# WeasyPrint(GTK 의존성)나 Playwright(크로미움 다운로드) 대신 순수 Python인
+# fpdf2를 선택했다 — 그라디언트 등 CSS 효과는 근사만 가능하다.
+fpdf2==2.8.7                     # week3/pdf_report.py

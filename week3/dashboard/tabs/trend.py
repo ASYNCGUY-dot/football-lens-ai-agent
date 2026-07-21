@@ -5,8 +5,105 @@ import streamlit as st
 from components import _html, espn_section
 
 
-def render_trend_tab(result: dict):
-    """트렌드 차트 탭 — 키워드 언급 빈도 + 감정 분포."""
+def _compute_stats(data: dict) -> dict:
+    """비교에 쓸 요약 지표(기사 수, 평균 감정, 이적루머 건수)를 계산한다."""
+    articles = data.get("korean_articles", []) + data.get("english_articles", [])
+    sentiments = data.get("article_sentiments", [])
+    avg_sentiment = (
+        sum(s.get("sentiment_score", 0) for s in sentiments) / len(sentiments)
+        if sentiments else None
+    )
+    return {
+        "article_count": len(articles),
+        "avg_sentiment": avg_sentiment,
+        "rumor_count": len(data.get("transfer_rumors", [])),
+        "saved_at": data.get("_saved_at"),
+    }
+
+
+def _render_history_comparison(result: dict, league: str) -> None:
+    """
+    지금 결과와 저장된 과거 결과를 비교한다. 같은 리그의 과거 실행이
+    없으면 조용히 아무것도 그리지 않는다.
+    """
+    if not league:
+        return
+
+    from week3.storage.results_store import list_results, load_result
+
+    past_entries = [
+        e for e in list_results(limit=50)
+        if e.get("league") == league and e.get("run_id") != result.get("run_id")
+    ]
+    if not past_entries:
+        return
+
+    espn_section("📊", "지난 분석과 비교")
+
+    options = {
+        f"{e['saved_at'][:16].replace('T', ' ')} 실행" if e.get("saved_at") else e["run_id"]: e["file"]
+        for e in past_entries
+    }
+    choice = st.selectbox("비교할 과거 실행", options=list(options.keys()), key="history_compare_select")
+    past_data = load_result(options[choice])
+    if not past_data:
+        st.info("과거 결과를 불러오지 못했습니다.")
+        return
+
+    now_stats = _compute_stats(result)
+    past_stats = _compute_stats(past_data)
+
+    def _delta_html(now_val, past_val, unit="", higher_is=None):
+        if now_val is None or past_val is None:
+            return '<span style="color:#AAA;font-size:11px;">비교 불가</span>'
+        diff = now_val - past_val
+        if abs(diff) < 0.001:
+            return '<span style="color:#888;font-size:12px;">변화 없음</span>'
+        arrow = "▲" if diff > 0 else "▼"
+        color = "#888"
+        if higher_is == "good":
+            color = "#2E7D32" if diff > 0 else "#CC0000"
+        elif higher_is == "bad":
+            color = "#CC0000" if diff > 0 else "#2E7D32"
+        sign = "+" if diff > 0 else ""
+        return f'<span style="color:{color};font-size:12px;font-weight:700;">{arrow} {sign}{diff:.2f}{unit}</span>'
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        delta = _delta_html(now_stats["article_count"], past_stats["article_count"], unit="건")
+        _html(f"""
+<div style="background:#FFFFFF;border-radius:4px;padding:14px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,0.07);">
+<div style="font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;color:#1A1A1A;">{now_stats['article_count']}건</div>
+<div style="font-size:11px;color:#888;margin-bottom:4px;">수집 기사 (이전 {past_stats['article_count']}건)</div>
+{delta}
+</div>
+""")
+    with col2:
+        now_s, past_s = now_stats["avg_sentiment"], past_stats["avg_sentiment"]
+        delta = _delta_html(now_s, past_s, higher_is="good")
+        now_str = f"{now_s:+.2f}" if now_s is not None else "—"
+        past_str = f"{past_s:+.2f}" if past_s is not None else "—"
+        _html(f"""
+<div style="background:#FFFFFF;border-radius:4px;padding:14px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,0.07);">
+<div style="font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;color:#1A1A1A;">{now_str}</div>
+<div style="font-size:11px;color:#888;margin-bottom:4px;">평균 감정 (이전 {past_str})</div>
+{delta}
+</div>
+""")
+    with col3:
+        delta = _delta_html(now_stats["rumor_count"], past_stats["rumor_count"], unit="건", higher_is=None)
+        _html(f"""
+<div style="background:#FFFFFF;border-radius:4px;padding:14px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,0.07);">
+<div style="font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;color:#1A1A1A;">{now_stats['rumor_count']}건</div>
+<div style="font-size:11px;color:#888;margin-bottom:4px;">이적 루머 (이전 {past_stats['rumor_count']}건)</div>
+{delta}
+</div>
+""")
+    st.markdown("<br>", unsafe_allow_html=True)
+
+
+def render_trend_tab(result: dict, league: str = None):
+    """트렌드 차트 탭 — 키워드 언급 빈도 + 감정 분포 + 지난 분석과 비교."""
     all_articles = (
         result.get("korean_articles", []) + result.get("english_articles", [])
     )
@@ -21,6 +118,8 @@ def render_trend_tab(result: dict):
 </div>
 """)
         return
+
+    _render_history_comparison(result, league)
 
     try:
         import pandas as pd

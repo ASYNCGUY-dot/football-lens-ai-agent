@@ -243,7 +243,7 @@ def main():
             render_standings_tab(result)
     if "trend" in tabs:
         with tabs["trend"]:
-            render_trend_tab(result)
+            render_trend_tab(result, _league)
     if "rumors" in tabs:
         with tabs["rumors"]:
             render_transfer_rumors_tab(result)
