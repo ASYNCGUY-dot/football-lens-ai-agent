@@ -753,6 +753,12 @@ def _run_pipeline_in_thread(days_back: int, league: str, result_queue: queue.Que
             result.update(insight_node(result))
         except Exception as e:
             result.setdefault("errors", []).append(f"RAG/인사이트 오류: {e}")
+        try:
+            from week3.storage.results_store import save_result
+            save_result(result)
+        except Exception as e:
+            # 저장 실패가 파이프라인 자체를 막으면 안 됨 — 경고만 남기고 계속 진행
+            logger.warning(f"결과 저장 실패: {e}")
         result_queue.put(("ok", result))
     except Exception as e:
         logger.error(f"[백그라운드 파이프라인] 오류: {e}")
