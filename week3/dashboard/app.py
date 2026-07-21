@@ -2413,6 +2413,43 @@ def render_email_tab(result: dict):
             st.markdown(final_report[:1200] + ("..." if len(final_report) > 1200 else ""))
 
 
+def render_rag_search_tab(result: dict):
+    """
+    RAG 검색 탭 — 키워드로 관련 기사를 검색합니다.
+
+    get_rag_search_results()가 이미 ChromaDB 검색 → 키워드 폴백까지
+    처리하므로, 이 함수는 검색 입력창과 결과 카드 렌더링만 담당한다.
+    """
+    espn_section("🔍", "RAG 기사 검색")
+
+    query = st.text_input(
+        "검색어를 입력하세요",
+        placeholder="예: 손흥민 이적, 챔피언스리그 결과",
+        key="rag_search_query",
+    )
+    lang_choice = st.radio(
+        "언어", ["전체", "한국어", "영어"], horizontal=True, key="rag_search_lang",
+    )
+    lang_map = {"전체": None, "한국어": "ko", "영어": "en"}
+
+    if not query:
+        st.info("검색어를 입력하면 관련 기사를 찾아드립니다.")
+        return
+
+    with st.spinner("검색 중..."):
+        results, error_msg = get_rag_search_results(query, lang_map[lang_choice])
+
+    if error_msg:
+        st.warning(f"⚠️ {error_msg} — 키워드 기반 폴백 검색 결과를 표시합니다.")
+
+    if not results:
+        st.info("검색 결과가 없습니다. 먼저 ⚡ 분석 실행으로 기사를 수집해주세요.")
+        return
+
+    for r in results:
+        render_rag_card(r)
+
+
 # =============================================
 # 메인 진입점
 # =============================================
@@ -2562,16 +2599,21 @@ def main():
         .replace("리그앙", "FL1")
         .split("(")[0].strip()
     )
-    (tab_daily, tab_weekly,
-     tab_rumors,
+    (tab_daily, tab_weekly, tab_standings, tab_trend,
+     tab_rumors, tab_kleague, tab_worldcup,
      tab_player, tab_predict, tab_youtube,
-     tab_email) = st.tabs([
+     tab_rag_search, tab_email) = st.tabs([
         "⚽  일간 보고서",
         "📊  주간 보고서",
+        "🏆  순위표",
+        "📈  트렌드",
         "🔄  이적 루머",
+        "🇰🇷  K리그",
+        "🌍  월드컵",
         "⭐  주목할 선수",
         "🎯  경기 예측",
         "▶️  YouTube",
+        "🔍  RAG 검색",
         "📧  이메일 발송",
     ])
 
@@ -2579,14 +2621,24 @@ def main():
         render_daily_report(result, settings["language"], _league)
     with tab_weekly:
         render_weekly_report(result, _league)
+    with tab_standings:
+        render_standings_tab(result)
+    with tab_trend:
+        render_trend_tab(result)
     with tab_rumors:
         render_transfer_rumors_tab(result)
+    with tab_kleague:
+        render_kleague_tab(result)
+    with tab_worldcup:
+        render_worldcup_tab(result)
     with tab_player:
         render_spotlight_players_tab(result, _league)
     with tab_predict:
         render_prediction_tab(result, _league)
     with tab_youtube:
         render_youtube_tab(result)
+    with tab_rag_search:
+        render_rag_search_tab(result)
     with tab_email:
         render_email_tab(result)
 
