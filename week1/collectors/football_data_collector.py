@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 football_data_collector.py
 ==========================

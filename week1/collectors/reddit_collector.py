@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 reddit_collector.py
 ===================

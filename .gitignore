@@ -48,3 +48,6 @@ build/
 *.tmp
 *.bak
 *.swp
+
+# ─── Claude Code 개인 툴링 (VFF 등) ─────────────────────────
+.claude/
