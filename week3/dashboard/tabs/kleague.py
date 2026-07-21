@@ -16,8 +16,11 @@ def render_kleague_tab(result: dict):
         for s in result.get("article_sentiments", [])
     }
 
+    # "울산" 단독 키워드는 지명이라 K리그와 무관한 기사까지 잡아서 제외했다
+    # (구단명은 "울산hd"로 매칭). 팀 목록은 K리그1 상위 노출 구단 위주이며
+    # 전체 12개 구단을 다 커버하지는 않는다.
     K_LEAGUE_KEYWORDS = [
-        "k리그", "k-리그", "전북현대", "울산hd", "울산", "fc서울", "포항스틸러스",
+        "k리그", "k-리그", "전북현대", "울산hd", "fc서울", "포항스틸러스",
         "수원삼성", "인천유나이티드", "성남fc", "대구fc", "광주fc",
         "조규성", "오현규", "황인범",
     ]
@@ -39,6 +42,11 @@ def render_kleague_tab(result: dict):
         return
 
     espn_section("🇰🇷", "K-League News", len(kleague_articles))
+    st.caption(
+        "⚠️ K리그 전용으로 수집한 기사가 아니라, 전체 축구 뉴스 중 K리그 키워드가 "
+        "포함된 기사만 걸러낸 것입니다 — 완벽하지 않을 수 있습니다. "
+        "또한 football-data.org는 K리그 경기 데이터를 지원하지 않아 순위표는 제공되지 않습니다."
+    )
 
     if not kleague_articles:
         st.info("현재 수집된 K리그 기사가 없습니다. 검색 키워드에 'K리그', '전북현대', '울산HD' 등을 포함해주세요.")
@@ -55,12 +63,13 @@ def render_kleague_tab(result: dict):
                 team_cnt[t] += 1
 
     if team_cnt:
+        st.caption("📊 구단별 기사 언급 횟수 (많이 언급된 순)")
         c1, c2, c3 = st.columns(3)
         for i, (team, cnt) in enumerate(team_cnt.most_common(3)):
             with [c1, c2, c3][i]:
                 _html(f"""
 <div style="background:#FFFFFF;border-radius:4px;border-top:3px solid #CC0000;padding:14px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,0.07);">
-<div style="font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;color:#CC0000;">{cnt}</div>
+<div style="font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;color:#CC0000;">{cnt}<span style="font-size:11px;color:#999;font-weight:400;">건</span></div>
 <div style="font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;color:#1A1A1A;text-transform:uppercase;">{team.upper()}</div>
 </div>
 """)

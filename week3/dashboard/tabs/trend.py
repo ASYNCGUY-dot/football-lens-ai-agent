@@ -30,6 +30,11 @@ def render_trend_tab(result: dict):
 
         # ── 1. 키워드 빈도 차트 ──────────────────────────────
         espn_section("📊", "Keyword Frequency")
+        st.caption(
+            "오늘 수집된 기사 제목·요약에 아래 고정 키워드(선수명·클럽명 등)가 "
+            "몇 번 등장했는지 센 것입니다. 실시간 트렌드가 아니라 미리 정해둔 "
+            "키워드 목록 기준이라, 목록에 없는 이슈는 잡히지 않습니다."
+        )
         TRACK_KEYWORDS = [
             "손흥민", "이강인", "황희찬", "김민재", "홀란드", "살라",
             "엠바페", "벨링엄", "야말", "케인", "이적", "챔피언스리그",
@@ -69,6 +74,12 @@ def render_trend_tab(result: dict):
         # ── 2. 감정 분포 도넛 차트 ──────────────────────────
         if sentiments:
             espn_section("😊", "Sentiment Distribution")
+            st.caption(
+                "수집된 기사 전체를 AI가 긍정/중립/부정으로 분류한 비율입니다. "
+                "'긍정'은 응원할 만한 좋은 소식(승리, 활약 등), '부정'은 안 좋은 "
+                "소식(패배, 부상, 논란 등)에 가깝다는 뜻이며, 특정 팀 편향을 "
+                "의미하지는 않습니다."
+            )
             col1, col2 = st.columns([1, 2])
 
             label_counts = Counter(s.get("sentiment_label", "중립") for s in sentiments)
@@ -109,6 +120,12 @@ def render_trend_tab(result: dict):
         # ── 3. 날짜별 기사 수 라인 차트 ──────────────────────
         if all_articles:
             espn_section("📅", "Daily Article Volume")
+            st.caption(
+                "기사 발행일(published_at) 기준 날짜별 기사 수입니다. 뉴스 수집이 "
+                "최근 기사 위주라 보통 최근 날짜로 갈수록 급격히 늘어나는 모양이 "
+                "정상입니다 — 오래된 날짜에 기사가 거의 없는 건 버그가 아니라 "
+                "수집 방식(최신 뉴스 중심) 때문입니다."
+            )
             date_counts = Counter()
             for a in all_articles:
                 pub = a.get("published_at")

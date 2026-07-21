@@ -29,12 +29,32 @@ def render_youtube_tab(result: dict):
     for i, v in enumerate(videos[:12]):
         with col_l if i % 2 == 0 else col_r:
             thumb = v.get("thumbnail", "")
+            is_mock = v.get("source") == "youtube_mock"
             title = v.get("title", "")[:70]
             channel = v.get("channel", "")
             url = v.get("url", "#")
             query = v.get("query", "")
             pub = str(v.get("published_at", ""))[:10]
-            thumb_html = f'<img src="{thumb}" style="width:100%;height:140px;object-fit:cover;border-radius:4px 4px 0 0;" onerror="this.style.display=\'none\'">' if thumb else ""
+            if is_mock:
+                # Mock 데이터는 실제 영상 썸네일이 없다. 관련 없는 스톡사진을
+                # 진짜 썸네일처럼 보여주면 오해를 주므로, 재생 아이콘 +
+                # "MOCK" 라벨이 명확한 플레이스홀더로 대체한다.
+                thumb_html = (
+                    '<div style="width:100%;height:140px;border-radius:4px 4px 0 0;'
+                    'background:linear-gradient(135deg,#2A2A2A,#1A1A1A);'
+                    'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;">'
+                    '<span style="font-size:32px;opacity:0.6;">▶️</span>'
+                    '<span style="font-size:10px;color:#FFF;background:#CC0000;padding:2px 8px;'
+                    'border-radius:2px;font-family:Oswald,sans-serif;font-weight:700;'
+                    'letter-spacing:0.5px;">MOCK — 실제 영상 아님</span>'
+                    '</div>'
+                )
+            else:
+                thumb_html = (
+                    f'<img src="{thumb}" style="width:100%;height:140px;object-fit:cover;'
+                    f'border-radius:4px 4px 0 0;" onerror="this.style.display=\'none\'">'
+                    if thumb else ""
+                )
             _html(f"""
 <div style="background:#FFFFFF;border-radius:6px;overflow:hidden;
      box-shadow:0 2px 8px rgba(0,0,0,0.08);margin-bottom:16px;">

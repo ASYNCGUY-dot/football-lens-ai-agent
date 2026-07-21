@@ -39,5 +39,18 @@ def render_rag_search_tab(result: dict):
         st.info("검색 결과가 없습니다. 먼저 ⚡ 분석 실행으로 기사를 수집해주세요.")
         return
 
+    # 유사도가 낮으면(=사실상 관련 기사를 못 찾은 것) 결과를 그대로 정답처럼
+    # 보여주지 않고 경고한다. 데모 데이터셋이 작을 때(수십 건 미만) 특히
+    # 무관한 쿼리에도 "가장 덜 무관한" 결과가 나오기 쉬워서 필요하다.
+    SIMILARITY_WARN_THRESHOLD = 45.0
+    best_similarity = max(
+        (1 - r.get("distance", 1)) * 100 for r in results
+    ) if results else 0
+    if best_similarity < SIMILARITY_WARN_THRESHOLD:
+        st.warning(
+            f"⚠️ 검색어와 확실히 관련된 기사를 찾지 못했습니다 (최고 유사도 "
+            f"{best_similarity:.1f}%). 아래는 그나마 가까운 결과이니 참고만 하세요."
+        )
+
     for r in results:
         render_rag_card(r)

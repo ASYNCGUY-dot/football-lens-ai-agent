@@ -54,6 +54,11 @@ def render_transfer_rumors_tab(result: dict):
         return
 
     espn_section("🔄", "Transfer Rumors — 최신 이적 소식", len(rumors))
+    st.caption(
+        "카드 우측 상단 점수는 '이적 성사 가능성'이 아니라 기사 전체의 AI 감정 "
+        "분석 점수(-1.0 매우 부정 ~ +1.0 매우 긍정)를 그대로 가져온 것입니다. "
+        "이적설 자체의 신빙성과는 무관하며, 단지 기사가 어떤 톤으로 쓰였는지를 나타냅니다."
+    )
 
     # 선수별 그룹화
     player_rumors: dict[str, list] = {}

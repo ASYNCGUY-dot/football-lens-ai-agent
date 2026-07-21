@@ -217,48 +217,76 @@ def main():
         .replace("리그앙", "FL1")
         .split("(")[0].strip()
     )
-    (tab_daily, tab_weekly, tab_standings, tab_trend,
-     tab_rumors, tab_kleague, tab_worldcup,
-     tab_player, tab_predict, tab_youtube,
-     tab_rag_search, tab_email) = st.tabs([
-        "⚽  일간 보고서",
-        "📊  주간 보고서",
-        "🏆  순위표",
-        "📈  트렌드",
-        "🔄  이적 루머",
-        "🇰🇷  K리그",
-        "🌍  월드컵",
-        "⭐  주목할 선수",
-        "🎯  경기 예측",
-        "▶️  YouTube",
-        "🔍  RAG 검색",
-        "📧  이메일 발송",
-    ])
 
-    with tab_daily:
-        render_daily_report(result, settings["language"], _league)
-    with tab_weekly:
-        render_weekly_report(result, _league)
-    with tab_standings:
-        render_standings_tab(result)
-    with tab_trend:
-        render_trend_tab(result)
-    with tab_rumors:
-        render_transfer_rumors_tab(result)
-    with tab_kleague:
-        render_kleague_tab(result)
-    with tab_worldcup:
-        render_worldcup_tab(result)
-    with tab_player:
-        render_spotlight_players_tab(result, _league)
-    with tab_predict:
-        render_prediction_tab(result, _league)
-    with tab_youtube:
-        render_youtube_tab(result)
-    with tab_rag_search:
-        render_rag_search_tab(result)
-    with tab_email:
-        render_email_tab(result)
+    # 사이드바에서 선택한 리그와, 지금 화면에 뜬 결과가 실제로 어느 리그로
+    # 실행됐는지가 다르면(=리그만 바꾸고 재실행을 안 누른 경우) 알려준다.
+    # 예전엔 이 안내가 없어서 "리그를 바꿨는데 이전 리그 데이터가 그대로 보인다"는
+    # 혼란이 있었다.
+    result_league = (result.get("config") or {}).get("league")
+    if result and result_league and result_league != _league:
+        st.warning(
+            f"⚠️ 지금 보이는 결과는 **{result_league}** 기준입니다. "
+            f"사이드바에서 리그를 바꾼 뒤에는 **⚡ 분석 실행**을 다시 눌러야 반영됩니다.",
+            icon="⚠️",
+        )
+
+    # 리그/대회별로 의미 없는 탭은 숨긴다 (예: K리그 선택 시 월드컵 탭,
+    # 월드컵/K리그 선택 시 순위표 탭 — football-data.org가 K리그를 지원하지
+    # 않고, 월드컵은 조별리그 순위를 월드컵 탭 안에서 별도로 보여준다).
+    tab_defs = [
+        ("daily", "⚽  일간 보고서", True),
+        ("weekly", "📊  주간 보고서", True),
+        ("standings", "🏆  순위표", _league not in ("KL1", "WC")),
+        ("trend", "📈  트렌드", True),
+        ("rumors", "🔄  이적 루머", True),
+        ("kleague", "🇰🇷  K리그", _league == "KL1"),
+        ("worldcup", "🌍  월드컵", _league == "WC"),
+        ("player", "⭐  주목할 선수", True),
+        ("predict", "🎯  경기 예측", True),
+        ("youtube", "▶️  YouTube", True),
+        ("rag_search", "🔍  RAG 검색", True),
+        ("email", "📧  이메일 발송", True),
+    ]
+    visible = [(key, label) for key, label, shown in tab_defs if shown]
+    tab_objs = st.tabs([label for _, label in visible])
+    tabs = dict(zip((key for key, _ in visible), tab_objs))
+
+    if "daily" in tabs:
+        with tabs["daily"]:
+            render_daily_report(result, settings["language"], _league)
+    if "weekly" in tabs:
+        with tabs["weekly"]:
+            render_weekly_report(result, _league)
+    if "standings" in tabs:
+        with tabs["standings"]:
+            render_standings_tab(result)
+    if "trend" in tabs:
+        with tabs["trend"]:
+            render_trend_tab(result)
+    if "rumors" in tabs:
+        with tabs["rumors"]:
+            render_transfer_rumors_tab(result)
+    if "kleague" in tabs:
+        with tabs["kleague"]:
+            render_kleague_tab(result)
+    if "worldcup" in tabs:
+        with tabs["worldcup"]:
+            render_worldcup_tab(result)
+    if "player" in tabs:
+        with tabs["player"]:
+            render_spotlight_players_tab(result, _league)
+    if "predict" in tabs:
+        with tabs["predict"]:
+            render_prediction_tab(result, _league)
+    if "youtube" in tabs:
+        with tabs["youtube"]:
+            render_youtube_tab(result)
+    if "rag_search" in tabs:
+        with tabs["rag_search"]:
+            render_rag_search_tab(result)
+    if "email" in tabs:
+        with tabs["email"]:
+            render_email_tab(result)
 
 
 if __name__ == "__main__":
