@@ -1,0 +1,12 @@
+[server]
+# 장시간 파이프라인 실행 시 연결 끊김 방지
+maxMessageSize = 200        # WebSocket 최대 메시지 크기 (MB)
+enableCORS = false
+enableXsrfProtection = false
+
+[browser]
+gatherUsageStats = false    # 사용 통계 수집 비활성화 (응답 빨라짐)
+
+[runner]
+# 스크립트 실행 중 다른 탭/위젯 변경 시 즉시 재실행 방지
+fastReruns = false

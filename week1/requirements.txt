@@ -1,0 +1,23 @@
+# 데이터 수집
+feedparser==6.0.11
+requests==2.31.0
+httpx==0.27.0
+
+# 전처리
+langdetect==1.0.9
+python-dateutil==2.9.0
+beautifulsoup4==4.12.3
+lxml==5.2.2
+
+# 데이터베이스
+psycopg2-binary==2.9.9
+sqlalchemy==2.0.30
+
+# 유틸리티
+python-dotenv==1.0.1
+schedule==1.2.2
+loguru==0.7.2
+tqdm==4.66.4
+
+# 중복 제거
+simhash==2.1.2

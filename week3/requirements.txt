@@ -1,0 +1,40 @@
+# =============================================
+# week3 requirements.txt
+# Football Lens - RAG + 대시보드 + 이메일
+# =============================================
+
+# ── week1/2 공통 의존성 (이미 설치된 경우 생략 가능) ──
+feedparser==6.0.11
+requests==2.31.0
+langdetect==1.0.9
+psycopg2-binary==2.9.9
+python-dotenv==1.0.1
+langgraph==0.2.55
+langchain-anthropic==0.3.0
+langchain-openai==0.2.14
+langchain-google-genai==2.0.8
+anthropic==0.40.0
+openai==1.58.1
+google-generativeai==0.8.3
+
+# ── week3 신규 의존성 ──
+
+# RAG / 벡터 DB
+# chromadb==0.5.3은 chroma-hnswlib==0.7.3을 요구하는데, 그 버전은
+# Windows + Python 3.12용 사전 빌드 wheel이 없어 소스 빌드(Visual C++ 필요) 에러가 난다.
+# 0.5.4는 chroma-hnswlib==0.7.5(사전 빌드 wheel 있음)를 요구해 별도 조치 없이 설치된다.
+chromadb==0.5.4                  # 로컬 벡터 DB
+sentence-transformers==3.0.1     # 임베딩 모델 (all-MiniLM-L6-v2 등)
+
+# Streamlit 대시보드
+streamlit==1.37.0
+plotly==5.22.0                   # 차트 시각화
+pandas==2.2.2                    # 데이터프레임
+
+# 이메일
+# smtplib은 Python 표준 라이브러리 (별도 설치 불필요)
+# 이메일 본문 HTML 렌더링용
+jinja2==3.1.4                    # HTML 템플릿 렌더링
+
+# 유틸
+tqdm==4.66.4                     # 임베딩 진행률 표시

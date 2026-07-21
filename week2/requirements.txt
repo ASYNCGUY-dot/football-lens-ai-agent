@@ -1,0 +1,16 @@
+# week2 추가 패키지 (week1/requirements.txt 위에 추가 설치)
+# pip install -r requirements.txt
+
+# LangGraph / LangChain
+langgraph==0.2.55
+langchain-anthropic==0.3.0
+langchain-openai==0.2.14
+langchain-google-genai==2.0.8
+
+# LLM API 클라이언트
+anthropic==0.40.0
+openai==1.58.1
+google-generativeai==0.8.3
+
+# 비동기 처리
+asyncio-throttle==1.0.2
