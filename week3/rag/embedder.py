@@ -303,6 +303,41 @@ class ArticleEmbedder:
         logger.info(f"[build_index] 완료 | 실제:{stats['real_count']}건")
         return stats
 
+    def index_articles(self, articles: list[dict]) -> dict:
+        """
+        DB를 거치지 않고, 이번 파이프라인 실행에서 수집한 기사를 바로
+        인덱싱한다.
+
+        build_index()는 week1 PostgreSQL에서 기사를 읽어오도록 설계돼
+        있는데, 실제 파이프라인은 그 DB에 기사를 저장하는 단계가 없어서
+        (_fetch_db_articles가 항상 실패 → 더미 데이터로 대체) RAG 검색이
+        영구히 초기 데모 10건만 대상으로 동작하는 문제가 있었다. 이 메서드는
+        rag_search_node가 이미 들고 있는 state의 실제 기사를 바로 넘겨받아
+        인덱싱함으로써 DB 단계를 우회한다.
+
+        upsert이므로 매 실행마다 호출해도 같은 기사는 덮어쓸 뿐 중복되지
+        않는다.
+
+        Parameters
+        ----------
+        articles : list[dict]
+            이번 실행에서 수집된 기사 (article_id 필수)
+
+        Returns
+        -------
+        dict
+            {"indexed": N}
+        """
+        if not articles:
+            return {"indexed": 0}
+        ids, docs, metas = self._articles_to_documents(articles, "real")
+        if not ids:
+            return {"indexed": 0}
+        embs = self._embed_texts(docs)
+        self._upsert_batch(ids, docs, metas, embs)
+        logger.info(f"[index_articles] 이번 실행 기사 {len(ids)}건 인덱싱 완료")
+        return {"indexed": len(ids)}
+
     def search(
         self,
         query: str,

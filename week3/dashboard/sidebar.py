@@ -39,7 +39,10 @@ def render_sidebar() -> dict:
         st.caption("🏆 리그 / 대회")
         league = st.selectbox(
             "리그",
-            options=["EPL (프리미어리그)", "2026 FIFA 월드컵", "K리그1", "라리가", "분데스리가", "세리에A", "리그앙"],
+            options=[
+                "EPL (프리미어리그)", "2026 FIFA 월드컵", "K리그1", "라리가", "분데스리가",
+                "세리에A", "리그앙", "챔피언스리그", "브라질세리에A", "코파리베르타도레스",
+            ],
             index=0,
             label_visibility="collapsed",
         )

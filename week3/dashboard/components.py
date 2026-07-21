@@ -9,7 +9,7 @@ from datetime import datetime
 
 import streamlit as st
 
-from constants import IMG_STADIUM, IMG_MATCH, LOGO_COLOR
+from constants import IMG_STADIUM, LOGO_COLOR
 from utils import _filter_articles_by_league
 
 
@@ -141,9 +141,25 @@ def render_news_card(article: dict, show_image: bool = False):
 
     img_html = ""
     article_img = article.get("image_url", "")
-    if show_image or article_img:
-        src = article_img or IMG_MATCH
-        img_html = f'<img src="{src}" style="width:100%;height:110px;object-fit:cover;border-radius:2px;margin-bottom:8px;" alt="article" onerror="this.src=\'{IMG_MATCH}\'">'
+    if article_img:
+        # 실제 기사 이미지가 있을 때만 보여준다 (RSS는 대부분 제공, 네이버
+        # 뉴스 검색 API는 이미지 필드 자체가 없음 — 무관한 스톡사진을
+        # 대신 넣으면 기사 내용과 안 맞는 사진이 반복 노출되는 문제가 있었음)
+        img_html = (
+            f'<img src="{article_img}" style="width:100%;height:110px;object-fit:cover;'
+            f'border-radius:2px;margin-bottom:8px;" alt="article" '
+            f'onerror="this.parentElement.querySelector(\'.espn-img-fallback\')?.style.removeProperty(\'display\');this.remove();">'
+        )
+    elif show_image:
+        # 이미지가 없는데 큰 카드로 보여야 할 때는 출처만 담은 중립
+        # 플레이스홀더로 대체 (스톡사진으로 오해 유발하지 않음)
+        src_label = (article.get("source_name") or "기사")[:12]
+        img_html = (
+            f'<div class="espn-img-fallback" style="width:100%;height:110px;border-radius:2px;'
+            f'margin-bottom:8px;background:#F0F0F0;display:flex;align-items:center;'
+            f'justify-content:center;color:#AAA;font-family:Oswald,sans-serif;'
+            f'font-size:12px;font-weight:600;">📰 {src_label}</div>'
+        )
 
     _html(f"""
 <div class="espn-card">

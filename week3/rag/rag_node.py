@@ -117,11 +117,22 @@ def rag_search_node(state: FootballNewsState) -> dict:
 
         embedder = ArticleEmbedder()
 
-        # 인덱스가 비어 있으면 자동 빌드
-        stats = embedder.get_stats()
-        if stats.get("total", 0) == 0:
-            logger.info("[rag_search_node] 인덱스 없음 → 자동 빌드 시작")
-            embedder.build_index()
+        # 이번 실행에서 수집한 실제 기사를 바로 인덱싱한다 (DB 우회).
+        # build_index()는 week1 PostgreSQL에서 읽어오도록 설계돼 있는데
+        # 파이프라인이 그 DB에 기사를 저장하지 않아서, 예전엔 인덱스가
+        # 최초 데모 10건에서 영원히 멈춰 있었다. upsert라 매번 호출해도
+        # 중복되지 않는다.
+        real_articles = state.get("korean_articles", []) + state.get("english_articles", [])
+        if real_articles:
+            index_stats = embedder.index_articles(real_articles)
+            logger.info(f"[rag_search_node] 실기사 인덱싱: {index_stats.get('indexed', 0)}건")
+        else:
+            # 이번 실행에 실제 기사가 없으면(예: 수집 실패) 최초 1회만
+            # 데모 데이터라도 인덱스에 채워 완전히 빈 결과를 피한다.
+            stats = embedder.get_stats()
+            if stats.get("total", 0) == 0:
+                logger.info("[rag_search_node] 인덱스 비어있고 실기사도 없음 → 데모 데이터로 초기화")
+                embedder.build_index()
 
         # 검색 쿼리 생성
         queries = _build_queries(state)

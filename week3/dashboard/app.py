@@ -54,6 +54,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+from constants import _LEAGUE_API_CODE
 from styles import inject_custom_css
 from components import render_ticker, render_hero
 from sidebar import render_sidebar
@@ -155,17 +156,7 @@ def main():
 
     pipeline_btn = settings.get("run_pipeline", False)
     if pipeline_btn:
-        league_code = (
-            settings["league"]
-            .replace("EPL (프리미어리그)", "PL")
-            .replace("2026 FIFA 월드컵", "WC")
-            .replace("K리그1", "KL1")
-            .replace("라리가", "PD")
-            .replace("분데스리가", "BL1")
-            .replace("세리에A", "SA")
-            .replace("리그앙", "FL1")
-            .split("(")[0].strip()
-        )
+        league_code = _LEAGUE_API_CODE.get(settings["league"], settings["league"])
         rq = queue.Queue()
         st.session_state["_pipeline_queue"] = rq
         st.session_state["_pipeline_running"] = True
@@ -206,17 +197,7 @@ def main():
         return
 
     # 탭 — 리그 표시명을 API 코드로 변환
-    _league = (
-        settings["league"]
-        .replace("EPL (프리미어리그)", "PL")
-        .replace("2026 FIFA 월드컵", "WC")
-        .replace("K리그1", "KL1")
-        .replace("라리가", "PD")
-        .replace("분데스리가", "BL1")
-        .replace("세리에A", "SA")
-        .replace("리그앙", "FL1")
-        .split("(")[0].strip()
-    )
+    _league = _LEAGUE_API_CODE.get(settings["league"], settings["league"])
 
     # 사이드바에서 선택한 리그와, 지금 화면에 뜬 결과가 실제로 어느 리그로
     # 실행됐는지가 다르면(=리그만 바꾸고 재실행을 안 누른 경우) 알려준다.
@@ -280,7 +261,7 @@ def main():
             render_prediction_tab(result, _league)
     if "youtube" in tabs:
         with tabs["youtube"]:
-            render_youtube_tab(result)
+            render_youtube_tab(result, _league)
     if "rag_search" in tabs:
         with tabs["rag_search"]:
             render_rag_search_tab(result)

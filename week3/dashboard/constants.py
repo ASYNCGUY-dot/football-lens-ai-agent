@@ -81,6 +81,9 @@ _LEAGUE_KEYWORDS: dict = {
     "분데스리가":         ["분데스리가", "bundesliga", "독일 리그"],
     "세리에A":           ["세리에", "serie a", "이탈리아 리그"],
     "리그앙":            ["리그앙", "ligue 1", "프랑스 리그"],
+    "챔피언스리그":       ["챔피언스리그", "champions league", "ucl"],
+    "브라질세리에A":      ["브라질", "브라지레이랑", "brasileirao", "brazilian serie a", "brazil"],
+    "코파리베르타도레스":  ["코파 리베르타도레스", "리베르타도레스", "copa libertadores", "libertadores"],
 }
 
 # 리그명 → 표시용 이름 + 이모지
@@ -92,4 +95,28 @@ _LEAGUE_DISPLAY: dict = {
     "분데스리가":         "🇩🇪 분데스리가",
     "세리에A":           "🇮🇹 세리에A",
     "리그앙":            "🇫🇷 리그앙",
+    "챔피언스리그":       "⭐ UEFA 챔피언스리그",
+    "브라질세리에A":      "🇧🇷 브라질 세리에A",
+    "코파리베르타도레스":  "🏆 코파 리베르타도레스",
 }
+
+# 리그명(사이드바 표시용) → football-data.org API 코드
+# 예전엔 app.py에서 .replace() 체인 2곳이 같은 매핑을 중복 구현했는데,
+# "세리에A"가 "브라질세리에A"의 부분 문자열이라 replace 순서에 따라
+# 오작동할 위험이 있어서 딕셔너리 조회로 통일했다.
+_LEAGUE_API_CODE: dict = {
+    "EPL (프리미어리그)": "PL",
+    "2026 FIFA 월드컵": "WC",
+    "K리그1": "KL1",
+    "라리가": "PD",
+    "분데스리가": "BL1",
+    "세리에A": "SA",
+    "리그앙": "FL1",
+    "챔피언스리그": "CL",
+    "브라질세리에A": "BSA",
+    "코파리베르타도레스": "CLI",
+}
+
+# API 코드 → 리그명 (역매핑, _LEAGUE_KEYWORDS 등 표시명 기준 딕셔너리를
+# 코드값만 갖고 있을 때 조회하기 위함)
+_CODE_TO_LEAGUE_NAME: dict = {v: k for k, v in _LEAGUE_API_CODE.items()}

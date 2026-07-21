@@ -1,61 +1,71 @@
 # -*- coding: utf-8 -*-
 """tabs/youtube.py — YouTube 하이라이트 탭."""
+import os as _os
+
 import streamlit as st
 
-from components import _html, espn_section
+from constants import _CODE_TO_LEAGUE_NAME
+from components import _html, espn_section, render_news_card
+from utils import _filter_articles_by_league
+from season_info import render_off_season_notice
 
 
-def render_youtube_tab(result: dict):
-    """YouTube 하이라이트 탭을 렌더링합니다."""
-    videos = result.get("youtube_videos", [])
+def _render_related_news(result: dict, league: str) -> None:
+    """
+    영상 대신 보여줄 대안 콘텐츠 — 이번 실행에서 수집된 관련 리그 뉴스.
+    실시간 API를 새로 부르지 않고 이미 있는 result를 재사용한다.
+    """
+    league_name = _CODE_TO_LEAGUE_NAME.get(league)
+    all_articles = result.get("korean_articles", []) + result.get("english_articles", [])
+    related = _filter_articles_by_league(all_articles, league_name) if league_name else all_articles
 
-    import os as _os
-    if not _os.getenv("YOUTUBE_API_KEY"):
-        _html("""
-<div style="background:#FFF3E0;border-left:4px solid #FFA000;border-radius:0 6px 6px 0;
-     padding:12px 16px;margin-bottom:16px;font-size:13px;color:#555;">
-  📺 YouTube API 키가 설정되지 않았습니다. Mock 영상을 표시하거나 실제 영상을 보려면
-  <strong>YOUTUBE_API_KEY</strong>를 .env에 입력하세요.<br>
-  <span style="font-size:11px;color:#888;">발급: https://console.cloud.google.com → YouTube Data API v3</span>
-</div>
-""")
-
-    if not videos:
-        st.info("영상 데이터가 없습니다. 파이프라인을 실행하세요.")
+    if not related:
+        st.info("관련 뉴스도 아직 없습니다. 먼저 ⚡ 분석 실행으로 기사를 수집해주세요.")
         return
 
-    espn_section("▶️", "Football Highlights", len(videos))
+    espn_section("📰", "대신 최근 관련 소식을 확인하세요", len(related[:6]))
     col_l, col_r = st.columns(2)
-    for i, v in enumerate(videos[:12]):
+    for i, a in enumerate(related[:6]):
         with col_l if i % 2 == 0 else col_r:
-            thumb = v.get("thumbnail", "")
-            is_mock = v.get("source") == "youtube_mock"
-            title = v.get("title", "")[:70]
-            channel = v.get("channel", "")
-            url = v.get("url", "#")
-            query = v.get("query", "")
-            pub = str(v.get("published_at", ""))[:10]
-            if is_mock:
-                # Mock 데이터는 실제 영상 썸네일이 없다. 관련 없는 스톡사진을
-                # 진짜 썸네일처럼 보여주면 오해를 주므로, 재생 아이콘 +
-                # "MOCK" 라벨이 명확한 플레이스홀더로 대체한다.
-                thumb_html = (
-                    '<div style="width:100%;height:140px;border-radius:4px 4px 0 0;'
-                    'background:linear-gradient(135deg,#2A2A2A,#1A1A1A);'
-                    'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;">'
-                    '<span style="font-size:32px;opacity:0.6;">▶️</span>'
-                    '<span style="font-size:10px;color:#FFF;background:#CC0000;padding:2px 8px;'
-                    'border-radius:2px;font-family:Oswald,sans-serif;font-weight:700;'
-                    'letter-spacing:0.5px;">MOCK — 실제 영상 아님</span>'
-                    '</div>'
-                )
-            else:
+            render_news_card(a, show_image=True)
+
+
+def render_youtube_tab(result: dict, league: str = None):
+    """
+    YouTube 하이라이트 탭을 렌더링합니다.
+
+    실제 영상(YOUTUBE_API_KEY 설정 시)만 보여준다. 예전엔 키가 없을 때
+    무관한 스톡사진을 붙인 Mock 영상 그리드를 보여줬는데, 사용자 피드백에
+    따라 완전히 제거했다 — 비시즌이면 시즌 배너 + 관련 뉴스로, 시즌
+    중인데 API 키가 없으면 안내 문구만 보여준다.
+    """
+    videos = result.get("youtube_videos", [])
+    has_api_key = bool(_os.getenv("YOUTUBE_API_KEY"))
+    is_mock = any(v.get("source") == "youtube_mock" for v in videos)
+
+    if render_off_season_notice(league):
+        # 비시즌: 영상 대신 관련 리그 뉴스를 대안으로 보여준다
+        _render_related_news(result, league)
+        return
+
+    if has_api_key and videos and not is_mock:
+        # 실제 YouTube API로 가져온 진짜 영상 — 정상 렌더링
+        espn_section("▶️", "Football Highlights", len(videos))
+        col_l, col_r = st.columns(2)
+        for i, v in enumerate(videos[:12]):
+            with col_l if i % 2 == 0 else col_r:
+                thumb = v.get("thumbnail", "")
+                title = v.get("title", "")[:70]
+                channel = v.get("channel", "")
+                url = v.get("url", "#")
+                query = v.get("query", "")
+                pub = str(v.get("published_at", ""))[:10]
                 thumb_html = (
                     f'<img src="{thumb}" style="width:100%;height:140px;object-fit:cover;'
                     f'border-radius:4px 4px 0 0;" onerror="this.style.display=\'none\'">'
                     if thumb else ""
                 )
-            _html(f"""
+                _html(f"""
 <div style="background:#FFFFFF;border-radius:6px;overflow:hidden;
      box-shadow:0 2px 8px rgba(0,0,0,0.08);margin-bottom:16px;">
   {thumb_html}
@@ -68,3 +78,20 @@ def render_youtube_tab(result: dict):
   </div>
 </div>
 """)
+        return
+
+    # 시즌 중인데 API 키가 없거나(Mock) 영상이 없는 경우 — 무관한 스톡사진을
+    # 진짜 영상처럼 보여주는 대신, 정직하게 안내만 하고 관련 뉴스로 대체한다.
+    if not has_api_key:
+        _html("""
+<div style="background:#FFF3E0;border-left:4px solid #FFA000;border-radius:0 6px 6px 0;
+     padding:12px 16px;margin-bottom:16px;font-size:13px;color:#555;">
+  📺 YouTube API 키가 설정되지 않아 실제 하이라이트 영상을 불러올 수 없습니다.
+  <strong>YOUTUBE_API_KEY</strong>를 .env에 입력하면 여기에 실제 영상이 표시됩니다.<br>
+  <span style="font-size:11px;color:#888;">발급: https://console.cloud.google.com → YouTube Data API v3</span>
+</div>
+""")
+    else:
+        st.info("영상 데이터가 없습니다. 파이프라인을 실행하세요.")
+
+    _render_related_news(result, league)

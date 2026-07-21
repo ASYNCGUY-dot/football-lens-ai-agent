@@ -6,6 +6,7 @@ import streamlit as st
 
 from constants import IMG_TROPHY, _LEAGUE_DISPLAY
 from components import _html, espn_section
+from season_info import render_off_season_notice
 
 
 def render_weekly_report(result: dict, league: str = None):
@@ -14,6 +15,9 @@ def render_weekly_report(result: dict, league: str = None):
     league가 지정되면 해당 리그/대회 이름이 섹션 헤더에 표시됩니다.
     """
     league_display = _LEAGUE_DISPLAY.get(league, league or "⚽ 축구")
+
+    if render_off_season_notice(league):
+        return
 
     if not result:
         _html(f"""

@@ -56,7 +56,10 @@ AVAILABLE_LEAGUES = {
     "세리에A":      {"code": "SA",  "name": "세리에A",            "flag": "🇮🇹"},
     "리그앙":       {"code": "FL1", "name": "리그앙",             "flag": "🇫🇷"},
     "챔피언스리그": {"code": "CL",  "name": "UEFA 챔피언스리그", "flag": "⭐"},
-    "유로파리그":   {"code": "EL",  "name": "UEFA 유로파리그",   "flag": "🟠"},
+    "브라질세리에A": {"code": "BSA", "name": "브라질 세리에A",    "flag": "🇧🇷"},
+    "코파리베르타도레스": {"code": "CLI", "name": "코파 리베르타도레스", "flag": "🏆"},
+    # 주의: "유로파리그"(EL)는 이 API의 무료 플랜에서 지원하지 않아 제거했다
+    # (2026-07-21 /v4/competitions 목록 직접 확인 — 404).
 }
 
 # 2026 FIFA 월드컵 설정

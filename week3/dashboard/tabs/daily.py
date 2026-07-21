@@ -5,6 +5,7 @@ import streamlit as st
 from constants import _LEAGUE_DISPLAY
 from components import _html, espn_section, render_hot_issues, render_league_overview, render_news_card
 from utils import _filter_articles_by_league
+from season_info import render_off_season_notice
 
 
 def render_daily_report(result: dict, language: str, league: str = None):
@@ -13,6 +14,9 @@ def render_daily_report(result: dict, language: str, league: str = None):
     league가 지정되면 해당 리그/대회 관련 뉴스가 상단에 우선 배치됩니다.
     """
     league_display = _LEAGUE_DISPLAY.get(league, league or "⚽ 축구")
+
+    if render_off_season_notice(league):
+        return
 
     if not result:
         _html(f"""

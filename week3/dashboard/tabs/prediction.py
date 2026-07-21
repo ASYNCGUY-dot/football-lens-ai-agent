@@ -3,63 +3,13 @@
 import streamlit as st
 
 from components import _html, espn_section
+from season_info import render_off_season_notice
 
 
 def render_prediction_tab(result: dict, league: str = "PL"):
     """경기 예측 탭 — 리그 시즌 여부 확인 후 예측 또는 개막일 표시."""
-    from datetime import date as _date
-
-    # ── 리그별 시즌 일정 ──────────────────────────────────────
-    # (season_start, season_end, next_season_start, league_display)
-    _LEAGUE_SEASON = {
-        # WC 2026: 2026-06-11 ~ 2026-07-19
-        "WC":  (_date(2026, 6, 11),  _date(2026, 7, 19),  None,                "2026 FIFA 월드컵"),
-        # EPL 2025/26: ~2026-05-24 종료, 2026/27 개막 예정 2026-08-08
-        "PL":  (_date(2025, 8, 16),  _date(2026, 5, 24),  _date(2026, 8, 8),   "EPL 프리미어리그"),
-        # La Liga 2025/26
-        "PD":  (_date(2025, 8, 15),  _date(2026, 6, 1),   _date(2026, 8, 15),  "라리가"),
-        # Bundesliga 2025/26: 8월 개막, 5월 종료
-        "BL1": (_date(2025, 8, 22),  _date(2026, 5, 23),  _date(2026, 8, 7),   "분데스리가"),
-        # Serie A 2025/26
-        "SA":  (_date(2025, 8, 23),  _date(2026, 5, 31),  _date(2026, 8, 21),  "세리에A"),
-        # Ligue 1 2025/26
-        "FL1": (_date(2025, 8, 16),  _date(2026, 5, 24),  _date(2026, 8, 9),   "리그앙"),
-        # K리그1 2025: 2~11월
-        "KL1": (_date(2026, 2, 21),  _date(2026, 11, 30), None,                "K리그1"),
-    }
-
-    today = _date.today()
-    season_info = _LEAGUE_SEASON.get(league)
-
-    # ── 비시즌 처리 ───────────────────────────────────────────
-    if season_info:
-        s_start, s_end, next_start, lg_name = season_info
-        in_season = s_start <= today <= s_end
-
-        if not in_season and league != "WC":
-            # 비시즌 안내 카드
-            if next_start:
-                days_left = (next_start - today).days
-                next_str = next_start.strftime("%Y년 %m월 %d일")
-                countdown = f"{days_left}일 후" if days_left > 0 else "곧 개막"
-            else:
-                next_str = "미정"
-                countdown = ""
-
-            _html(f"""
-<div style="background:#FFFFFF;border-radius:8px;border:2px solid #E0E0E0;padding:48px 32px;text-align:center;margin-top:16px;">
-<div style="font-size:56px;margin-bottom:16px;">🏖️</div>
-<div style="font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;color:#1A1A1A;text-transform:uppercase;margin-bottom:8px;">{lg_name} — 비시즌</div>
-<div style="font-size:15px;color:#555;margin-bottom:20px;">현재 리그가 진행 중이지 않습니다.</div>
-<div style="display:inline-block;background:#CC0000;color:#FFF;border-radius:6px;padding:14px 28px;">
-  <div style="font-size:11px;font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:1px;opacity:0.85;margin-bottom:4px;">다음 시즌 개막</div>
-  <div style="font-family:'Oswald',sans-serif;font-size:24px;font-weight:700;">{next_str}</div>
-  <div style="font-size:13px;margin-top:4px;opacity:0.9;">{countdown}</div>
-</div>
-<div style="margin-top:24px;font-size:12px;color:#888;">개막 후 분석을 실행하면 경기 예측이 표시됩니다.</div>
-</div>
-""")
-            return
+    if render_off_season_notice(league, context="개막 후 분석을 실행하면 경기 예측이 표시됩니다."):
+        return
 
     # ── 분석 미실행 상태 ──────────────────────────────────────
     prediction = result.get("match_prediction", {})
