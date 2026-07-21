@@ -210,6 +210,10 @@ class FootballNewsState(TypedDict, total=False):
     # Annotated[list, operator.add] 덕분에 여러 노드가 에러를 추가해도 누락 없이 합산됨
     errors: Annotated[list[str], operator.add]
 
+    # ── API 비용 추적 (리스트 append 방식 병합, errors와 동일 패턴) ─────
+    # 각 LLM 호출 노드가 자신의 사용량 1건을 담아 반환하면 여기 누적됨
+    llm_usage: Annotated[list[dict], operator.add]
+
 
 # =============================================
 # 초기 State 생성 헬퍼
@@ -262,6 +266,7 @@ def create_initial_state(run_id: str = None, config: dict = None) -> FootballNew
         article_sentiments=[],
         transfer_rumors=[],
         errors=[],
+        llm_usage=[],
     )
 
 

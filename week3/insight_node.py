@@ -36,6 +36,7 @@ if WEEK2_PATH not in sys.path:
     sys.path.insert(0, WEEK2_PATH)
 
 from state import FootballNewsState
+from token_tracker import make_usage_record, usage_from_anthropic, usage_from_openai
 
 
 def _clean_api_key(key: str | None) -> str:
@@ -266,11 +267,13 @@ def insight_node(state: FootballNewsState) -> dict:
                 )
                 insight_text = message.content[0].text
                 logger.info("[insight_node] Claude로 인사이트 생성 완료")
+                in_tok, out_tok = usage_from_anthropic(message)
                 return {
                     "insight_report": insight_text,
                     "final_report": _build_final_report(state, insight_text),
                     "report_generated_at": now_iso,
                     "errors": [],
+                    "llm_usage": [make_usage_record("anthropic", "claude-3-5-haiku-20241022", in_tok, out_tok, "insight_node")],
                 }
             except Exception as e:
                 logger.warning(f"[insight_node] Claude 오류, OpenAI로 폴백: {e}")
@@ -292,11 +295,13 @@ def insight_node(state: FootballNewsState) -> dict:
                 )
                 insight_text = response.choices[0].message.content
                 logger.info("[insight_node] GPT-4o-mini로 인사이트 생성 완료")
+                in_tok, out_tok = usage_from_openai(response)
                 return {
                     "insight_report": insight_text,
                     "final_report": _build_final_report(state, insight_text),
                     "report_generated_at": now_iso,
                     "errors": [],
+                    "llm_usage": [make_usage_record("openai", "gpt-4o-mini", in_tok, out_tok, "insight_node")],
                 }
             except Exception as e:
                 logger.warning(f"[insight_node] GPT-4o-mini 오류: {e}")

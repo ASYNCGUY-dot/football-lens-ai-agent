@@ -10,6 +10,15 @@ import streamlit as st
 
 from constants import LOGO_WHITE
 from components import _html
+from token_tracker import summarize_usage
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def _get_cumulative_cost() -> float:
+    """results/ 에 저장된 모든 실행의 API 비용 합산 (60초 캐시)."""
+    from week3.storage.results_store import list_results
+    entries = list_results(limit=1000)
+    return round(sum(e.get("cost_usd", 0.0) for e in entries), 6)
 
 
 def render_sidebar() -> dict:
@@ -75,6 +84,22 @@ def render_sidebar() -> dict:
 """)
         else:
             _html('<div style="font-size:12px;color:#AAA;text-align:center;padding:8px 0;">분석 실행 전</div>')
+
+        # ── API 비용 추적 ─────────────────────────────────────
+        usage_summary = summarize_usage((result or {}).get("llm_usage", []))
+        if usage_summary["call_count"] > 0:
+            cumulative_cost = _get_cumulative_cost()
+            est_mark = "~" if usage_summary["has_estimate"] else ""
+            _html(f"""
+<div style="background:#FFF8E1;border-radius:6px;padding:10px 14px;margin-top:8px;font-size:12px;color:#555;line-height:1.8;">
+  <div style="font-weight:700;color:#1A1A1A;margin-bottom:4px;">💰 API 비용</div>
+  <div>이번 실행 <strong style="color:#CC0000;float:right;">{est_mark}${usage_summary['total_cost_usd']:.4f}</strong></div>
+  <div>누적(저장분) <strong style="color:#1A1A1A;float:right;">~${cumulative_cost:.4f}</strong></div>
+  <div style="font-size:10px;color:#999;margin-top:2px;">LLM 호출 {usage_summary['call_count']}건 · 토큰 {usage_summary['total_input_tokens']+usage_summary['total_output_tokens']:,}개</div>
+</div>
+""")
+            if usage_summary["has_estimate"]:
+                _html('<div style="font-size:10px;color:#AAA;margin-top:2px;">~ 표시는 Gemini 별칭 모델 단가 추정치 포함</div>')
 
         _html(f'<div style="font-size:11px;color:#BBB;text-align:center;margin-top:6px;">🕐 {datetime.now().strftime("%Y.%m.%d %H:%M")}</div>')
 

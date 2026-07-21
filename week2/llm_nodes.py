@@ -32,6 +32,7 @@ from datetime import datetime, timezone
 from dotenv import load_dotenv
 
 from state import FootballNewsState, SummaryResult, MatchAnalysisResult, SentimentResult, MatchPredictionResult
+from token_tracker import make_usage_record, usage_from_anthropic, usage_from_openai, usage_from_gemini
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -218,6 +219,7 @@ def summarize_korean_node(state: FootballNewsState) -> dict:
             response_text = response.content[0].text
             key_topics = _parse_topics(response_text)
             logger.info(f"[summarize_korean_node] Claude 응답 완료 | 토픽: {key_topics}")
+            in_tok, out_tok = usage_from_anthropic(response)
             return {
                 "korean_summary": SummaryResult(
                     model_used=model_name,
@@ -226,7 +228,8 @@ def summarize_korean_node(state: FootballNewsState) -> dict:
                     key_topics=key_topics,
                     generated_at=_now_iso(),
                     error=None,
-                )
+                ),
+                "llm_usage": [make_usage_record("anthropic", model_name, in_tok, out_tok, "summarize_korean_node")],
             }
         except Exception as e:
             logger.warning(f"[summarize_korean_node] Claude 실패, 폴백 시도: {e}")
@@ -249,6 +252,7 @@ def summarize_korean_node(state: FootballNewsState) -> dict:
             response_text = response.choices[0].message.content
             key_topics = _parse_topics(response_text)
             logger.info(f"[summarize_korean_node] OpenAI 폴백 응답 완료 | 토픽: {key_topics}")
+            in_tok, out_tok = usage_from_openai(response)
             return {
                 "korean_summary": SummaryResult(
                     model_used=f"{model_name}(폴백)",
@@ -257,7 +261,8 @@ def summarize_korean_node(state: FootballNewsState) -> dict:
                     key_topics=key_topics,
                     generated_at=_now_iso(),
                     error=None,
-                )
+                ),
+                "llm_usage": [make_usage_record("openai", model_name, in_tok, out_tok, "summarize_korean_node")],
             }
         except Exception as e:
             logger.warning(f"[summarize_korean_node] OpenAI 폴백 실패: {e}")
@@ -265,7 +270,7 @@ def summarize_korean_node(state: FootballNewsState) -> dict:
     # ── ③ Google Gemini 폴백 ──────────────────────────────
     google_key = _clean_api_key(os.getenv("GOOGLE_API_KEY"))
     if google_key:
-        model_name = "gemini-1.5-flash"
+        model_name = "gemini-flash-latest"
         try:
             import google.generativeai as genai
             genai.configure(api_key=google_key)
@@ -277,6 +282,7 @@ def summarize_korean_node(state: FootballNewsState) -> dict:
             response_text = response.text
             key_topics = _parse_topics(response_text)
             logger.info(f"[summarize_korean_node] Gemini 폴백 응답 완료 | 토픽: {key_topics}")
+            in_tok, out_tok = usage_from_gemini(response)
             return {
                 "korean_summary": SummaryResult(
                     model_used=f"{model_name}(폴백)",
@@ -285,7 +291,8 @@ def summarize_korean_node(state: FootballNewsState) -> dict:
                     key_topics=key_topics,
                     generated_at=_now_iso(),
                     error=None,
-                )
+                ),
+                "llm_usage": [make_usage_record("google", model_name, in_tok, out_tok, "summarize_korean_node")],
             }
         except Exception as e:
             logger.warning(f"[summarize_korean_node] Gemini 폴백 실패: {e}")
@@ -394,6 +401,7 @@ Please summarize following the system instructions."""
                 break
 
         logger.info(f"[summarize_english_node] GPT 응답 완료 | 토픽: {key_topics}")
+        in_tok, out_tok = usage_from_openai(response)
 
         return {
             "english_summary": SummaryResult(
@@ -403,7 +411,8 @@ Please summarize following the system instructions."""
                 key_topics=key_topics,
                 generated_at=_now_iso(),
                 error=None,
-            )
+            ),
+            "llm_usage": [make_usage_record("openai", model_name, in_tok, out_tok, "summarize_english_node")],
         }
 
     except Exception as e:
@@ -412,7 +421,7 @@ Please summarize following the system instructions."""
     # ── ② Google Gemini 폴백 ──────────────────────────────
     google_key = _clean_api_key(os.getenv("GOOGLE_API_KEY"))
     if google_key:
-        gemini_model = "gemini-1.5-flash"
+        gemini_model = "gemini-flash-latest"
         try:
             import google.generativeai as genai
             genai.configure(api_key=google_key)
@@ -433,6 +442,7 @@ Please summarize following the system instructions."""
                     key_topics = [t.strip() for t in line.split(":", 1)[-1].split(",") if t.strip()]
                     break
             logger.info(f"[summarize_english_node] Gemini 폴백 완료 | 토픽: {key_topics}")
+            in_tok, out_tok = usage_from_gemini(response)
             return {
                 "english_summary": SummaryResult(
                     model_used=f"{gemini_model}(폴백)",
@@ -441,7 +451,8 @@ Please summarize following the system instructions."""
                     key_topics=key_topics,
                     generated_at=_now_iso(),
                     error=None,
-                )
+                ),
+                "llm_usage": [make_usage_record("google", gemini_model, in_tok, out_tok, "summarize_english_node")],
             }
         except Exception as e2:
             logger.warning(f"[summarize_english_node] Gemini 폴백 실패: {e2}")
@@ -472,7 +483,7 @@ def analyze_match_node(state: FootballNewsState) -> dict:
     """
     EPL 경기 결과와 순위표를 Gemini API로 분석합니다.
 
-    사용 모델: gemini-1.5-flash (빠른 응답, 구조화 데이터 분석 우수)
+    사용 모델: gemini-flash-latest (빠른 응답, 구조화 데이터 분석 우수)
     대안 모델: gemini-1.5-pro (더 심층적인 전술 분석이 필요할 때)
 
     프롬프트 전략:
@@ -544,7 +555,7 @@ def analyze_match_node(state: FootballNewsState) -> dict:
 
 위 뉴스를 바탕으로 월드컵 경기 분석을 작성해 주세요."""
 
-        model_name = "gemini-1.5-flash"
+        model_name = "gemini-flash-latest"
         try:
             import google.generativeai as genai
             genai.configure(api_key=api_key)
@@ -555,6 +566,7 @@ def analyze_match_node(state: FootballNewsState) -> dict:
             )
             text = resp.text
             logger.info("[analyze_match_node] WC 뉴스 기반 Gemini 분석 완료")
+            in_tok, out_tok = usage_from_gemini(resp)
             return {
                 "match_analysis": MatchAnalysisResult(
                     model_used=model_name,
@@ -564,7 +576,8 @@ def analyze_match_node(state: FootballNewsState) -> dict:
                     standings_summary="뉴스 기반 분석 (API 경기 데이터 미제공)",
                     generated_at=_now_iso(),
                     error=None,
-                )
+                ),
+                "llm_usage": [make_usage_record("google", model_name, in_tok, out_tok, "analyze_match_node")],
             }
         except Exception as e:
             logger.warning(f"[analyze_match_node] WC 뉴스 분석 실패: {e}")
@@ -621,7 +634,7 @@ def analyze_match_node(state: FootballNewsState) -> dict:
 
 위 데이터를 시스템 지시에 따라 분석해 주세요."""
 
-    model_name = "gemini-1.5-flash"
+    model_name = "gemini-flash-latest"
     try:
         import google.generativeai as genai
         genai.configure(api_key=api_key)
@@ -651,6 +664,7 @@ def analyze_match_node(state: FootballNewsState) -> dict:
                 standings_summary = stripped.split(":", 1)[-1].strip()
 
         logger.info(f"[analyze_match_node] Gemini 응답 완료 | 주목경기: {notable_results}")
+        in_tok, out_tok = usage_from_gemini(response)
 
         return {
             "match_analysis": MatchAnalysisResult(
@@ -661,7 +675,8 @@ def analyze_match_node(state: FootballNewsState) -> dict:
                 standings_summary=standings_summary,
                 generated_at=_now_iso(),
                 error=None,
-            )
+            ),
+            "llm_usage": [make_usage_record("google", model_name, in_tok, out_tok, "analyze_match_node")],
         }
 
     except Exception as e:
@@ -734,7 +749,7 @@ def sentiment_analysis_node(state: FootballNewsState) -> dict:
         )
 
     # ── LLM 배치 분석 ──────────────────────────────────────
-    def _llm_batch_sentiment(articles: list[dict], api_key_type: str) -> list[SentimentResult] | None:
+    def _llm_batch_sentiment(articles: list[dict], api_key_type: str) -> tuple[list[SentimentResult] | None, dict | None]:
         import json
         batch = articles[:20]
         lines = []
@@ -758,28 +773,34 @@ Return ONLY valid JSON array, no markdown."""
         try:
             if api_key_type == "anthropic":
                 import anthropic
+                model_name = "claude-3-5-haiku-20241022"
                 key = _clean_api_key(os.getenv("ANTHROPIC_API_KEY"))
                 client = anthropic.Anthropic(api_key=key)
                 resp = client.messages.create(
-                    model="claude-3-5-haiku-20241022",
+                    model=model_name,
                     max_tokens=2000,
                     system=system_prompt,
                     messages=[{"role": "user", "content": user_prompt}],
                 )
                 raw = resp.content[0].text
+                in_tok, out_tok = usage_from_anthropic(resp)
+                usage_rec = make_usage_record("anthropic", model_name, in_tok, out_tok, "sentiment_analysis_node")
             elif api_key_type == "openai":
                 from openai import OpenAI
+                model_name = "gpt-4o-mini"
                 key = _clean_api_key(os.getenv("OPENAI_API_KEY"))
                 client = OpenAI(api_key=key)
                 resp = client.chat.completions.create(
-                    model="gpt-4o-mini",
+                    model=model_name,
                     max_tokens=2000,
                     messages=[{"role": "system", "content": system_prompt},
                               {"role": "user", "content": user_prompt}],
                 )
                 raw = resp.choices[0].message.content
+                in_tok, out_tok = usage_from_openai(resp)
+                usage_rec = make_usage_record("openai", model_name, in_tok, out_tok, "sentiment_analysis_node")
             else:
-                return None
+                return None, None
 
             # JSON 추출
             raw = raw.strip()
@@ -802,17 +823,18 @@ Return ONLY valid JSON array, no markdown."""
                     rumor_players=item.get("players", [])[:3],
                     rumor_clubs=item.get("clubs", [])[:3],
                 ))
-            return results
+            return results, usage_rec
         except Exception as e:
             logger.warning(f"[sentiment_analysis_node] LLM 배치 실패 ({api_key_type}): {e}")
-            return None
+            return None, None
 
     # API 키 우선순위로 시도
     sentiments = None
+    usage_rec = None
     for api_type in ["anthropic", "openai"]:
         key_env = {"anthropic": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY"}[api_type]
         if _clean_api_key(os.getenv(key_env)):
-            sentiments = _llm_batch_sentiment(all_articles, api_type)
+            sentiments, usage_rec = _llm_batch_sentiment(all_articles, api_type)
             if sentiments:
                 logger.info(f"[sentiment_analysis_node] {api_type} 분석 완료 {len(sentiments)}건")
                 break
@@ -835,6 +857,7 @@ Return ONLY valid JSON array, no markdown."""
     return {
         "article_sentiments": sentiments,
         "transfer_rumors": rumor_articles,
+        "llm_usage": [usage_rec] if usage_rec else [],
     }
 
 
@@ -901,7 +924,7 @@ def match_prediction_node(state: FootballNewsState) -> dict:
         for api_type, env_var, model_id in [
             ("anthropic", "ANTHROPIC_API_KEY", "claude-3-5-haiku-20241022"),
             ("openai",    "OPENAI_API_KEY",    "gpt-4o-mini"),
-            ("google",    "GOOGLE_API_KEY",    "gemini-1.5-flash"),
+            ("google",    "GOOGLE_API_KEY",    "gemini-flash-latest"),
         ]:
             key = _clean_api_key(os.getenv(env_var))
             if not key:
@@ -916,6 +939,7 @@ def match_prediction_node(state: FootballNewsState) -> dict:
                         messages=[{"role": "user", "content": wc_user}],
                     )
                     text = resp.content[0].text
+                    in_tok, out_tok = usage_from_anthropic(resp)
                 elif api_type == "openai":
                     from openai import OpenAI
                     client = OpenAI(api_key=key)
@@ -925,20 +949,25 @@ def match_prediction_node(state: FootballNewsState) -> dict:
                                   {"role": "user", "content": wc_user}],
                     )
                     text = resp.choices[0].message.content
+                    in_tok, out_tok = usage_from_openai(resp)
                 else:
                     import google.generativeai as genai
                     genai.configure(api_key=key)
                     m = genai.GenerativeModel(model_name=model_id, system_instruction=wc_system)
                     resp = m.generate_content(wc_user)
                     text = resp.text
+                    in_tok, out_tok = usage_from_gemini(resp)
                 logger.info(f"[match_prediction_node] WC 뉴스 분석 완료 ({api_type})")
-                return {"match_prediction": MatchPredictionResult(
-                    model_used=model_id,
-                    prediction_text=text,
-                    predictions=[],
-                    generated_at=_now_iso(),
-                    error=None,
-                )}
+                return {
+                    "match_prediction": MatchPredictionResult(
+                        model_used=model_id,
+                        prediction_text=text,
+                        predictions=[],
+                        generated_at=_now_iso(),
+                        error=None,
+                    ),
+                    "llm_usage": [make_usage_record(api_type, model_id, in_tok, out_tok, "match_prediction_node")],
+                }
             except Exception as e:
                 logger.warning(f"[match_prediction_node] WC 뉴스 분석 실패 ({api_type}): {e}")
 
@@ -1010,7 +1039,7 @@ def match_prediction_node(state: FootballNewsState) -> dict:
     for api_type, env_var, model_id in [
         ("anthropic", "ANTHROPIC_API_KEY", "claude-3-5-haiku-20241022"),
         ("openai",    "OPENAI_API_KEY",    "gpt-4o-mini"),
-        ("google",    "GOOGLE_API_KEY",    "gemini-1.5-flash"),
+        ("google",    "GOOGLE_API_KEY",    "gemini-flash-latest"),
     ]:
         key = _clean_api_key(os.getenv(env_var))
         if not key:
@@ -1025,6 +1054,7 @@ def match_prediction_node(state: FootballNewsState) -> dict:
                     messages=[{"role": "user", "content": user_prompt}],
                 )
                 text = resp.content[0].text
+                in_tok, out_tok = usage_from_anthropic(resp)
             elif api_type == "openai":
                 from openai import OpenAI
                 client = OpenAI(api_key=key)
@@ -1034,6 +1064,7 @@ def match_prediction_node(state: FootballNewsState) -> dict:
                               {"role": "user", "content": user_prompt}],
                 )
                 text = resp.choices[0].message.content
+                in_tok, out_tok = usage_from_openai(resp)
             else:
                 import google.generativeai as genai
                 genai.configure(api_key=key)
@@ -1041,6 +1072,7 @@ def match_prediction_node(state: FootballNewsState) -> dict:
                 resp = m.generate_content(user_prompt,
                     generation_config=genai.types.GenerationConfig(max_output_tokens=1500))
                 text = resp.text
+                in_tok, out_tok = usage_from_gemini(resp)
 
             preds = []
             for ln in text.split("\n"):
@@ -1049,13 +1081,16 @@ def match_prediction_node(state: FootballNewsState) -> dict:
                     preds.append({"match": match_str, "details": ""})
 
             logger.info(f"[match_prediction_node] {api_type} 완료 | 경기 {len(preds)}건 예측")
-            return {"match_prediction": MatchPredictionResult(
-                model_used=model_id,
-                prediction_text=text,
-                predictions=preds,
-                generated_at=_now_iso(),
-                error=None,
-            )}
+            return {
+                "match_prediction": MatchPredictionResult(
+                    model_used=model_id,
+                    prediction_text=text,
+                    predictions=preds,
+                    generated_at=_now_iso(),
+                    error=None,
+                ),
+                "llm_usage": [make_usage_record(api_type, model_id, in_tok, out_tok, "match_prediction_node")],
+            }
         except Exception as e:
             logger.warning(f"[match_prediction_node] {api_type} 실패: {e}")
 

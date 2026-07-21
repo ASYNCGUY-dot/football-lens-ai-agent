@@ -86,7 +86,7 @@ def list_results(limit: int = 20) -> list[dict]:
     Returns
     -------
     list[dict]
-        [{"run_id", "saved_at", "league", "file", "has_errors"}, ...]
+        [{"run_id", "saved_at", "league", "file", "has_errors", "cost_usd"}, ...]
     """
     if not RESULTS_DIR.exists():
         return []
@@ -100,12 +100,14 @@ def list_results(limit: int = 20) -> list[dict]:
         except (OSError, json.JSONDecodeError) as e:
             logger.warning(f"결과 파일 읽기 실패 ({f}): {e}")
             continue
+        cost_usd = sum(u.get("cost_usd", 0.0) for u in data.get("llm_usage", []) or [])
         summaries.append({
             "run_id": data.get("run_id", f.stem),
             "saved_at": data.get("_saved_at"),
             "league": (data.get("config") or {}).get("league"),
             "file": f.name,
             "has_errors": bool(data.get("errors")),
+            "cost_usd": round(cost_usd, 6),
         })
     return summaries
 
