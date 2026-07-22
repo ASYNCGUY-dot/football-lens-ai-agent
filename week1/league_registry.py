@@ -196,10 +196,12 @@ LEAGUES: dict = {
         "video_queries": ["K리그 하이라이트", "K리그1 하이라이트", "K League highlights"],
         "rag_queries": ["K리그1 경기 결과", "한국 프로축구 순위"],
         "season": (date(2026, 2, 21), date(2026, 11, 30), None),
-        # football-data.org가 K리그를 지원하지 않아 순위표/득점왕/경기
-        # 데이터는 이 리그에서만 제공 안 됨 — 자세한 내용은
-        # week1/collectors/football_data_collector.py의 AVAILABLE_LEAGUES 주석 참고.
-        "unsupported_by_football_data": True,
+        # football-data.org는 K리그를 지원하지 않지만(자세한 내용은
+        # week1/collectors/football_data_collector.py의 AVAILABLE_LEAGUES
+        # 주석 참고), K리그 연맹 공식 사이트(kleague.com)의 내부 API로
+        # 순위표/득점왕/경기결과를 대신 채운다 — week2/nodes.py의
+        # collect_node가 league_code=="KL1"일 때 football_data_collector
+        # 대신 week1/collectors/kleague_collector.py를 쓴다(2026-07-22).
     },
     "PD": {
         "sidebar_name": "라리가",

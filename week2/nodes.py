@@ -230,16 +230,30 @@ def collect_node(state: FootballNewsState) -> dict:
             logger.warning("[collect_node] 월드컵: football-data API 키 없음, 건너뜀")
         except Exception as e:
             logger.warning(f"[collect_node] 월드컵 데이터 수집 실패 (비중요): {e}")
-    elif _LEAGUES.get(league_code, {}).get("unsupported_by_football_data"):
-        # K리그처럼 football-data.org 무료 플랜이 아예 지원하지 않는
-        # 리그는 4개 엔드포인트(경기/순위/득점왕/예정경기) 전부 100%
-        # 404가 난다는 걸 이미 알고 있다(league_registry.py에 문서화됨).
-        # 그런데도 매번 실제로 호출했었고, football_data_collector.py의
-        # 요청 간 rate-limit 대기(RATE_LIMIT_DELAY=6.1초)가 각 호출 전에
-        # 걸려서 4번 다 실패하는데도 약 22초가 그냥 날아갔다(2026-07-22,
-        # 실측: RSS 1.5초·네이버 1.8초·YouTube 1.1초 대비 football-data만
-        # 22.65초). 애초에 될 리 없는 호출이니 아예 건너뛴다.
-        logger.info(f"[collect_node] {league_code}: football-data.org 미지원 리그, 경기 데이터 수집 건너뜀")
+    elif league_code == "KL1":
+        # football-data.org 무료 플랜은 K리그를 아예 지원하지 않는다
+        # (league_registry.py의 unsupported_by_football_data 참고). 대신
+        # K리그 연맹 공식 사이트(kleague.com)가 자기 페이지 렌더링에 쓰는
+        # 내부 API를 찾아서 순위표/득점왕/경기결과를 채운다(2026-07-22,
+        # week1/collectors/kleague_collector.py 참고). 비공식 API라
+        # football-data.org만큼 안정적이진 않아서, 실패해도 예외 없이
+        # 빈 리스트만 반환하도록 kleague_collector 쪽에서 이미 처리해
+        # 뒀다 — 여기서는 그 결과를 그대로 받기만 한다.
+        try:
+            from collectors.kleague_collector import KLeagueCollector
+            kl_collector = KLeagueCollector()
+            raw_matches      = kl_collector.get_recent_matches(days_back=days_back)
+            raw_standings    = kl_collector.get_standings()
+            top_scorers      = kl_collector.get_top_scorers(limit=10)
+            upcoming_matches = kl_collector.get_upcoming_matches(days_ahead=7)
+            logger.info(
+                f"[collect_node] K리그 — 경기: {len(raw_matches)}건, 순위: {len(raw_standings)}팀, "
+                f"득점왕: {len(top_scorers)}명, 예정경기: {len(upcoming_matches)}건"
+            )
+        except Exception as e:
+            msg = f"K리그 데이터 수집 오류: {e}"
+            logger.error(msg)
+            errors.append(msg)
     else:
         # 일반 리그 (EPL, 라리가 등 football-data.org 지원 리그)
         try:

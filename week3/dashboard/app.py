@@ -215,9 +215,11 @@ def main():
             icon="⚠️",
         )
 
-    # 리그/대회별로 의미 없는 탭은 숨긴다 (예: 월드컵/K리그 선택 시 순위표 탭
-    # — football-data.org가 K리그를 지원하지 않고, 월드컵은 조별리그 순위를
-    # 월드컵 탭 안에서 별도로 보여준다).
+    # 리그/대회별로 의미 없는 탭은 숨긴다 (예: 월드컵 선택 시 순위표 탭 —
+    # 조별리그 순위를 월드컵 탭 안에서 별도로 보여준다). K리그는 예전엔
+    # football-data.org가 지원을 안 해서 순위표 탭 자체를 숨겼었는데,
+    # kleague_collector.py로 K리그 연맹 자체 데이터를 쓰게 되면서
+    # (2026-07-22) 더 이상 숨길 이유가 없다.
     # K리그 전용 탭은 제거했다 — 일간/주간 보고서·이적 루머가 이제 선택된
     # 리그로 실제로 필터링되므로(_filter_articles_by_league exclude 모드),
     # "리그/대회"에서 K리그1을 고르면 그 탭들만으로 충분하고 별도 탭은 중복이었다.
@@ -229,7 +231,7 @@ def main():
     tab_defs = [
         ("daily", "⚽  일간 보고서", True),
         ("weekly", "📊  주간 보고서", True),
-        ("standings", "🏆  순위표", _league not in ("KL1", "WC")),
+        ("standings", "🏆  순위표", _league != "WC"),
         ("trend", "📈  트렌드", True),
         ("rumors", "🔄  이적 루머", True),
         ("worldcup", "🌍  월드컵", _league == "WC"),
@@ -250,7 +252,7 @@ def main():
             render_weekly_report(result, _league)
     if "standings" in tabs:
         with tabs["standings"]:
-            render_standings_tab(result)
+            render_standings_tab(result, _league)
     if "trend" in tabs:
         with tabs["trend"]:
             render_trend_tab(result, _league)

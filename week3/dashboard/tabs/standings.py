@@ -1,20 +1,31 @@
 # -*- coding: utf-8 -*-
-"""tabs/standings.py — EPL 순위표 탭."""
+"""tabs/standings.py — 순위표 탭."""
 import streamlit as st
 
 from constants import IMG_TROPHY
 from components import _html, espn_section
+from league_registry import LEAGUES as _LEAGUES
 
 
-def render_standings_tab(result: dict):
-    """EPL 순위표 탭을 렌더링합니다."""
+def render_standings_tab(result: dict, league: str = "PL"):
+    """
+    리그 순위표 탭을 렌더링합니다.
+
+    예전엔 "EPL Standings"로 제목이 고정돼 있었는데, K리그도 이제
+    실제 순위표 데이터가 채워지면서(kleague_collector.py, 2026-07-22)
+    다른 리그를 봐도 항상 EPL이라고 나오는 게 어색해져서 리그별로
+    바뀌도록 고쳤다.
+    """
+    league_meta = _LEAGUES.get(league, {})
+    league_name = league_meta.get("full_name", league)
+
     standings = result.get("raw_standings", [])
     if not standings:
         _html(f"""
 <div style="background:#FFFFFF;border:2px dashed #E0E0E0;border-radius:4px;padding:48px;text-align:center;margin-top:16px;">
 <img src="{IMG_TROPHY}" style="width:100%;height:100px;object-fit:cover;border-radius:3px;margin-bottom:16px;opacity:0.5;" alt="trophy">
 <div style="font-family:'Oswald',sans-serif;font-size:20px;font-weight:700;color:#1A1A1A;text-transform:uppercase;margin-bottom:8px;">순위 데이터 없음</div>
-<div style="font-size:14px;color:#888;">EPL 분석을 먼저 실행해주세요</div>
+<div style="font-size:14px;color:#888;">{league_name} 분석을 먼저 실행해주세요</div>
 </div>
 """)
         return
@@ -35,7 +46,7 @@ def render_standings_tab(result: dict):
         available_cols = [c for c in display_cols if c in df.columns]
         df_display = df[available_cols].rename(columns=col_labels)
 
-        espn_section("📋", "EPL Standings")
+        espn_section("📋", f"{league_name} Standings")
         st.dataframe(df_display, use_container_width=True, hide_index=True)
 
         if "team_name" in df.columns and "points" in df.columns:
@@ -66,7 +77,7 @@ def render_standings_tab(result: dict):
         for team in standings[:10]:
             _html(f"""
 <div class="espn-card">
-<div class="espn-card-tag">EPL Standings</div>
+<div class="espn-card-tag">{league_name} Standings</div>
 <div class="espn-card-title"><span style="color:#CC0000;margin-right:10px;">{team.get('rank','?')}위</span>{team.get('team_name','?')}</div>
 <div class="espn-card-meta"><span class="ebadge eb-red">{team.get('points',0)}pts</span><span class="ebadge eb-dark">{team.get('won',0)}W</span><span class="ebadge eb-gray">{team.get('draw',0)}D</span><span>{team.get('lost',0)}L</span></div>
 </div>
