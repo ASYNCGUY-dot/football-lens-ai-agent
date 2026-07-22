@@ -22,6 +22,7 @@ API 키 발급:
 """
 
 import os
+import sys
 import logging
 import requests
 from datetime import datetime, timezone
@@ -30,10 +31,16 @@ from dotenv import load_dotenv
 load_dotenv()
 logger = logging.getLogger(__name__)
 
+_WEEK1_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _WEEK1_PATH not in sys.path:
+    sys.path.insert(0, _WEEK1_PATH)
+from league_registry import LEAGUES as _LEAGUES
+
 YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
 YOUTUBE_VIDEOS_URL = "https://www.googleapis.com/youtube/v3/videos"
 
-# 기본 검색 키워드 (축구 하이라이트 위주) — league_code를 안 넘겼을 때만 쓴다.
+# 기본 검색 키워드 (축구 하이라이트 위주) — league_code를 안 넘겼거나
+# 레지스트리에 없는 코드일 때만 쓴다.
 DEFAULT_QUERIES = [
     "EPL highlights this week",
     "Premier League goals",
@@ -43,30 +50,17 @@ DEFAULT_QUERIES = [
     "Champions League highlights",
 ]
 
-# 리그별 영상 검색 쿼리 — 예전엔 리그 선택과 무관하게 항상 위 DEFAULT_QUERIES를
-# 그대로 써서, K리그를 선택해도 EPL/챔피언스리그 하이라이트가 섞여 나왔다
-# (Naver 뉴스 수집기의 LEAGUE_KEYWORD_MAP과 동일한 종류의 버그였다). 같은
-# LEAGUE_KEYWORD_MAP을 재사용해 리그별 쿼리를 만든다.
-_LEAGUE_VIDEO_QUERIES: dict[str, list[str]] = {
-    "WC":  ["2026 FIFA 월드컵 하이라이트", "World Cup 2026 highlights", "월드컵 한국 하이라이트"],
-    "PL":  ["EPL highlights this week", "Premier League goals", "손흥민 하이라이트"],
-    "KL1": ["K리그 하이라이트", "K리그1 하이라이트", "K League highlights"],
-    "PD":  ["라리가 하이라이트", "La Liga highlights"],
-    "BL1": ["분데스리가 하이라이트", "Bundesliga highlights"],
-    "SA":  ["세리에A 하이라이트", "Serie A highlights"],
-    "FL1": ["리그앙 하이라이트", "Ligue 1 highlights"],
-    "CL":  ["챔피언스리그 하이라이트", "Champions League highlights"],
-    "BSA": ["브라질세리에A 하이라이트", "Brasileirao highlights"],
-    "CLI": ["코파리베르타도레스 하이라이트", "Copa Libertadores highlights"],
-    "ELC": ["EFL 챔피언십 하이라이트", "Championship highlights"],
-    "DED": ["에레디비시 하이라이트", "Eredivisie highlights"],
-    "PPL": ["프리메이라리가 하이라이트", "Primeira Liga highlights"],
-}
-
 
 def get_league_video_queries(league_code: str) -> list[str]:
-    """리그 코드에 맞는 YouTube 검색 쿼리를 반환한다. 없으면 DEFAULT_QUERIES."""
-    return _LEAGUE_VIDEO_QUERIES.get(league_code, DEFAULT_QUERIES)
+    """
+    리그 코드에 맞는 YouTube 검색 쿼리를 반환한다. 없으면 DEFAULT_QUERIES.
+
+    예전엔 리그 선택과 무관하게 항상 DEFAULT_QUERIES를 그대로 써서,
+    K리그를 선택해도 EPL/챔피언스리그 하이라이트가 섞여 나왔다 — 이제
+    week1/league_registry.py의 video_queries를 리그별로 재사용한다.
+    """
+    meta = _LEAGUES.get(league_code)
+    return meta["video_queries"] if meta else DEFAULT_QUERIES
 
 
 class YouTubeCollector:

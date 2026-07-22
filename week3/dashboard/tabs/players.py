@@ -5,6 +5,7 @@ from collections import Counter
 import streamlit as st
 
 from components import _html, espn_section, render_sentiment_badge
+from league_registry import LEAGUES as _LEAGUES
 
 
 def compute_player_stats(query: str, articles: list, sentiments_by_id: dict) -> dict:
@@ -65,15 +66,8 @@ def spotlight_candidates(top_scorers: list) -> list[str]:
 def render_spotlight_players_tab(result: dict, league: str = "PL"):
     """⭐ 주목할 선수 탭 — 득점 순위 기반 실선수 + 관련 뉴스 + 감정 통계."""
 
-    # 리그 이름 매핑
-    _LEAGUE_NAME = {
-        "WC": "2026 FIFA 월드컵", "PL": "EPL 프리미어리그",
-        "PD": "라리가", "BL1": "분데스리가",
-        "SA": "세리에A", "FL1": "리그앙", "KL1": "K리그1",
-        "CL": "UEFA 챔피언스리그", "BSA": "브라질 세리에A", "CLI": "코파 리베르타도레스",
-        "ELC": "EFL 챔피언십", "DED": "에레디비시", "PPL": "프리메이라리가",
-    }
-    league_name = _LEAGUE_NAME.get(league, league)
+    # 리그 이름 — week1/league_registry.py에서 가져온다.
+    league_name = _LEAGUES.get(league, {}).get("full_name", league)
 
     all_articles = (
         result.get("korean_articles", []) + result.get("english_articles", [])

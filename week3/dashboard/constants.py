@@ -71,77 +71,22 @@ PHOTO_STRIP = [
 ]
 
 
-# 리그명 -> 관련 키워드 매핑 (소문자로 비교)
-# 리그 라벨만 있으면 "전북현대"·"울산HD"처럼 팀명만 언급된 K리그 기사가
-# 걸러지지 않고 다른 리그로 새는 문제가 있어서, week1/naver_collector.py의
-# 수집 키워드(LEAGUE_KEYWORD_MAP)와 맞춰 팀/선수명까지 포함시켰다.
+# 리그명 -> 관련 키워드 매핑, 표시용 이름+이모지, API 코드 매핑은
+# 전부 week1/league_registry.py에서 파생시킨다(코드 기준 → 표시명
+# 기준으로 변환). 예전엔 이 파일에 직접 정의돼 있어서, 화면 필터
+# 키워드와 week1/naver_collector.py의 수집 키워드가 따로 관리되다
+# 어긋나는 버그가 반복됐다(예: 브라질세리에A의 "브라질" 단독 키워드가
+# 한쪽에서만 빠져있던 사례, 2026-07-22). 이제 레지스트리 하나만
+# 고치면 여기도 자동으로 반영된다.
+from league_registry import LEAGUES as _LEAGUES
+
 _LEAGUE_KEYWORDS: dict = {
-    "2026 FIFA 월드컵": ["월드컵", "world cup", "fifa 2026", "wc 2026", "2026 wc",
-                        "월드컵 2026", "북중미 월드컵"],
-    "EPL (프리미어리그)": ["epl", "프리미어리그", "premier league", "잉글랜드",
-                        "맨체스터시티", "리버풀", "아스날", "첼시", "토트넘",
-                        "맨체스터유나이티드", "손흥민", "황희찬", "홀란드", "살라", "벨링엄",
-                        "manchester city", "liverpool", "arsenal", "chelsea", "tottenham",
-                        "manchester united", "haaland", "salah", "bellingham"],
-    "K리그1":            ["k리그", "k-league", "kl1", "한국 프로축구", "k league",
-                        "전북현대", "울산hd", "울산현대", "fc서울", "수원삼성",
-                        "포항스틸러스", "대구fc", "광주fc",
-                        "jeonbuk", "ulsan hd", "fc seoul"],
-    "라리가":            ["라리가", "laliga", "la liga", "스페인 리그",
-                        "레알마드리드", "바르셀로나", "아틀레티코마드리드", "야말", "비니시우스",
-                        "real madrid", "barcelona", "atletico madrid", "yamal", "vinicius"],
-    "분데스리가":         ["분데스리가", "bundesliga", "독일 리그",
-                        "바이에른뮌헨", "도르트문트", "레버쿠젠", "케인", "무시알라",
-                        "bayern munich", "borussia dortmund", "bayer leverkusen", "kane", "musiala"],
-    "세리에A":           ["세리에", "serie a", "이탈리아 리그",
-                        "인테르밀란", "유벤투스", "ac밀란", "나폴리", "루카쿠",
-                        "inter milan", "juventus", "ac milan", "napoli", "lukaku"],
-    "리그앙":            ["리그앙", "ligue 1", "프랑스 리그",
-                        "psg", "파리생제르맹", "모나코", "마르세유", "음바페",
-                        "paris saint-germain", "monaco", "marseille", "mbappe"],
-    "챔피언스리그":       ["챔피언스리그", "champions league", "ucl",
-                        "맨체스터시티", "레알마드리드", "바이에른뮌헨",
-                        "manchester city", "real madrid", "bayern munich"],
-    # "브라질"/"brazil" 단독 키워드는 뺐다 — 브라질 국가대표팀·월드컵
-    # 뉴스 등 브라질세리에A와 무관한 내용까지 다 걸려서(2026-07-22,
-    # 카세미루 월드컵 기사가 뜬 사례) week1/naver_collector.py의
-    # BRASILEIRAO_KEYWORDS와 맞췄다 — 수집 키워드와 필터 키워드가
-    # 다르면 또 같은 문제가 재발한다.
-    "브라질세리에A":      ["브라질세리에A", "브라질리안세리에A", "브라지레이랑", "브라질 축구",
-                        "brasileirao", "brazilian serie a",
-                        "팔메이라스", "플라멩구", "플루미넨시", "브라간치누", "파라나엔세", "코린치안스",
-                        "palmeiras", "flamengo", "fluminense", "bragantino"],
-    # "산투스"/"santos"는 일부러 뺐다 — 흔한 선수 성씨와 겹쳐 오탐 발생
-    # (week1/naver_collector.py의 LIBERTADORES_KEYWORDS 주석 참고).
-    "코파리베르타도레스":  ["코파 리베르타도레스", "리베르타도레스", "copa libertadores", "libertadores",
-                        "보카주니어스", "리버플레이트", "그레미우", "인테르나시오나우", "코린치안스",
-                        "boca juniors", "river plate", "gremio", "internacional", "corinthians"],
-    "EFL 챔피언십":      ["efl챔피언십", "잉글랜드 2부", "championship",
-                        "리즈유나이티드", "셰필드유나이티드", "선덜랜드", "노리치시티", "웨스트브롬",
-                        "leeds united", "sheffield united", "sunderland", "norwich city", "west brom"],
-    "에레디비시":        ["에레디비시", "네덜란드 리그", "eredivisie",
-                        "아약스", "psv에인트호번", "페예노르트", "az알크마르",
-                        "ajax", "psv eindhoven", "feyenoord", "az alkmaar"],
-    "프리메이라리가":     ["프리메이라리가", "포르투갈 리그", "primeira liga",
-                        "벤피카", "포르투", "스포르팅cp", "브라가",
-                        "benfica", "porto", "sporting cp", "braga"],
+    meta["sidebar_name"]: [kw.lower() for kw in meta["keywords"]]
+    for meta in _LEAGUES.values()
 }
 
-# 리그명 → 표시용 이름 + 이모지
 _LEAGUE_DISPLAY: dict = {
-    "2026 FIFA 월드컵": "🌍 2026 FIFA 월드컵",
-    "EPL (프리미어리그)": "🏴󠁧󠁢󠁥󠁮󠁧󠁿 EPL",
-    "K리그1":            "🇰🇷 K리그1",
-    "라리가":            "🇪🇸 라리가",
-    "분데스리가":         "🇩🇪 분데스리가",
-    "세리에A":           "🇮🇹 세리에A",
-    "리그앙":            "🇫🇷 리그앙",
-    "챔피언스리그":       "⭐ UEFA 챔피언스리그",
-    "브라질세리에A":      "🇧🇷 브라질 세리에A",
-    "코파리베르타도레스":  "🏆 코파 리베르타도레스",
-    "EFL 챔피언십":      "🏴󠁧󠁢󠁥󠁮󠁧󠁿 EFL 챔피언십",
-    "에레디비시":        "🇳🇱 에레디비시",
-    "프리메이라리가":     "🇵🇹 프리메이라리가",
+    meta["sidebar_name"]: meta["display_emoji"] for meta in _LEAGUES.values()
 }
 
 # 리그명(사이드바 표시용) → football-data.org API 코드
@@ -149,19 +94,7 @@ _LEAGUE_DISPLAY: dict = {
 # "세리에A"가 "브라질세리에A"의 부분 문자열이라 replace 순서에 따라
 # 오작동할 위험이 있어서 딕셔너리 조회로 통일했다.
 _LEAGUE_API_CODE: dict = {
-    "EPL (프리미어리그)": "PL",
-    "2026 FIFA 월드컵": "WC",
-    "K리그1": "KL1",
-    "라리가": "PD",
-    "분데스리가": "BL1",
-    "세리에A": "SA",
-    "리그앙": "FL1",
-    "챔피언스리그": "CL",
-    "브라질세리에A": "BSA",
-    "코파리베르타도레스": "CLI",
-    "EFL 챔피언십": "ELC",
-    "에레디비시": "DED",
-    "프리메이라리가": "PPL",
+    meta["sidebar_name"]: code for code, meta in _LEAGUES.items()
 }
 
 # API 코드 → 리그명 (역매핑, _LEAGUE_KEYWORDS 등 표시명 기준 딕셔너리를

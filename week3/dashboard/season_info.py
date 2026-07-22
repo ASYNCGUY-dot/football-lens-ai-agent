@@ -3,44 +3,23 @@
 season_info.py
 ===============
 리그별 시즌 진행 여부를 판별하고, 비시즌일 때 공통으로 쓰는 안내 카드를
-렌더링한다. 원래 tabs/prediction.py에만 있던 로직을 공용화해서
-일간/주간 보고서 탭에도 같은 방식으로 적용한다.
+렌더링한다. 원래 경기 예측 탭에만 있던 로직을 공용화해서 일간/주간
+보고서 탭에도 같은 방식으로 적용한다(예측 탭 자체는 이후 제거됨).
 
-날짜 값은 2025/26 시즌 기준으로 하드코딩돼 있다 — 시즌이 바뀌면 갱신 필요.
+시즌 날짜 값은 week1/league_registry.py에 있다(2025/26 시즌 기준) —
+시즌이 바뀌면 그 파일에서 갱신하면 된다.
 """
 
-from datetime import date as _date
-
 from components import _html
+from league_registry import LEAGUES as _LEAGUES
 
 # (season_start, season_end, next_season_start, league_display)
+# week1/league_registry.py의 season/full_name 필드에서 파생한다 — 예전엔
+# 이 파일에 직접 정의돼 있어서 리그를 추가할 때마다 여기도 따로 고쳐야
+# 했다.
 LEAGUE_SEASON = {
-    # WC 2026: 2026-06-11 ~ 2026-07-19
-    "WC":  (_date(2026, 6, 11),  _date(2026, 7, 19),  None,                "2026 FIFA 월드컵"),
-    # EPL 2025/26: ~2026-05-24 종료, 2026/27 개막 예정 2026-08-08
-    "PL":  (_date(2025, 8, 16),  _date(2026, 5, 24),  _date(2026, 8, 8),   "EPL 프리미어리그"),
-    # La Liga 2025/26
-    "PD":  (_date(2025, 8, 15),  _date(2026, 6, 1),   _date(2026, 8, 15),  "라리가"),
-    # Bundesliga 2025/26: 8월 개막, 5월 종료
-    "BL1": (_date(2025, 8, 22),  _date(2026, 5, 23),  _date(2026, 8, 7),   "분데스리가"),
-    # Serie A 2025/26
-    "SA":  (_date(2025, 8, 23),  _date(2026, 5, 31),  _date(2026, 8, 21),  "세리에A"),
-    # Ligue 1 2025/26
-    "FL1": (_date(2025, 8, 16),  _date(2026, 5, 24),  _date(2026, 8, 9),   "리그앙"),
-    # K리그1 2025: 2~11월
-    "KL1": (_date(2026, 2, 21),  _date(2026, 11, 30), None,                "K리그1"),
-    # UEFA 챔피언스리그 — football-data.org API currentSeason 값으로 확인(2026-07-21)
-    "CL":  (_date(2025, 9, 16),  _date(2026, 5, 30),  _date(2026, 9, 15),  "UEFA 챔피언스리그"),
-    # 브라질 세리에A — API currentSeason 확인(2026-07-21): 2026-01-28~12-02
-    "BSA": (_date(2026, 1, 28),  _date(2026, 12, 2),  _date(2027, 1, 27),  "브라질 세리에A"),
-    # 코파 리베르타도레스 — API currentSeason 확인(2026-07-21): 2026-02-04~11-28
-    "CLI": (_date(2026, 2, 4),   _date(2026, 11, 28), _date(2027, 2, 3),   "코파 리베르타도레스"),
-    # EFL 챔피언십 — API currentSeason(다음 시즌) 확인(2026-07-22): 2026-08-14~2027-05-01
-    "ELC": (_date(2025, 8, 9),   _date(2026, 5, 3),   _date(2026, 8, 14),  "EFL 챔피언십"),
-    # 에레디비시 — API currentSeason(다음 시즌) 확인(2026-07-22): 2026-08-07~2027-05-23
-    "DED": (_date(2025, 8, 8),   _date(2026, 5, 24),  _date(2026, 8, 7),   "에레디비시"),
-    # 프리메이라리가 — API currentSeason(다음 시즌) 확인(2026-07-22): 2026-08-08~2027-05-16
-    "PPL": (_date(2025, 8, 15),  _date(2026, 5, 17),  _date(2026, 8, 8),   "프리메이라리가"),
+    code: (*meta["season"], meta["full_name"])
+    for code, meta in _LEAGUES.items()
 }
 
 

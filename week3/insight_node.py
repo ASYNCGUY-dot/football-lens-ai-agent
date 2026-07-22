@@ -35,8 +35,14 @@ WEEK2_PATH = os.path.join(os.path.dirname(__file__), "..", "week2")
 if WEEK2_PATH not in sys.path:
     sys.path.insert(0, WEEK2_PATH)
 
+# week1 league_registry 임포트
+WEEK1_PATH = os.path.join(os.path.dirname(__file__), "..", "week1")
+if WEEK1_PATH not in sys.path:
+    sys.path.insert(0, WEEK1_PATH)
+
 from state import FootballNewsState
 from token_tracker import make_usage_record, usage_from_anthropic, usage_from_openai
+from league_registry import LEAGUES as _LEAGUES
 
 
 def _clean_api_key(key: str | None) -> str:
@@ -123,31 +129,19 @@ def _format_standings_brief(standings: list[dict], top_n: int = 5) -> str:
     return "\n".join(lines)
 
 
-# 리그별 프롬프트 메타. PL 하나만 채워두고 나머지는 그냥 PL로 폴백하던
-# 예전 방식이 아니라(get()의 default가 아니라 dict 자체를 채워야 실제로
-# 적용된다) 지원 리그를 전부 채워뒀다 — insight_node()의 OpenAI 시스템
-# 메시지도 이 dict를 그대로 재사용해서 "당신은 EPL 애널리스트입니다"가
-# 리그와 무관하게 고정 출력되던 문제를 없앴다.
-_LEAGUE_META: dict = {
-    "WC":  {"name": "2026 FIFA 월드컵",  "role": "2026 FIFA 월드컵 전문 축구 애널리스트",  "standings_label": "조별리그 순위", "section3": "월드컵 순위 및 토너먼트 전망"},
-    "PL":  {"name": "EPL 프리미어리그",   "role": "EPL 및 한국 축구 전문 애널리스트",       "standings_label": "EPL 순위 (상위 5팀)", "section3": "EPL 순위 전망"},
-    "KL1": {"name": "K리그1",             "role": "K리그 전문 축구 애널리스트",             "standings_label": "K리그1 순위 (상위 5팀)", "section3": "K리그1 순위 전망"},
-    "PD":  {"name": "라리가",             "role": "라리가 전문 축구 애널리스트",            "standings_label": "라리가 순위 (상위 5팀)", "section3": "라리가 순위 전망"},
-    "BL1": {"name": "분데스리가",          "role": "분데스리가 전문 축구 애널리스트",         "standings_label": "분데스리가 순위 (상위 5팀)", "section3": "분데스리가 순위 전망"},
-    "SA":  {"name": "세리에A",            "role": "세리에A 전문 축구 애널리스트",           "standings_label": "세리에A 순위 (상위 5팀)", "section3": "세리에A 순위 전망"},
-    "FL1": {"name": "리그앙",             "role": "리그앙 전문 축구 애널리스트",            "standings_label": "리그앙 순위 (상위 5팀)", "section3": "리그앙 순위 전망"},
-    "CL":  {"name": "UEFA 챔피언스리그",  "role": "UEFA 챔피언스리그 전문 축구 애널리스트",  "standings_label": "조별 순위", "section3": "토너먼트 전망"},
-    "BSA": {"name": "브라질 세리에A",     "role": "브라질 세리에A 전문 축구 애널리스트",     "standings_label": "브라질 세리에A 순위 (상위 5팀)", "section3": "브라질 세리에A 순위 전망"},
-    "CLI": {"name": "코파 리베르타도레스", "role": "코파 리베르타도레스 전문 축구 애널리스트", "standings_label": "조별 순위", "section3": "토너먼트 전망"},
-    "ELC": {"name": "EFL 챔피언십",       "role": "EFL 챔피언십 전문 축구 애널리스트",       "standings_label": "EFL 챔피언십 순위 (상위 5팀)", "section3": "EFL 챔피언십 순위 전망"},
-    "DED": {"name": "에레디비시",          "role": "에레디비시 전문 축구 애널리스트",          "standings_label": "에레디비시 순위 (상위 5팀)", "section3": "에레디비시 순위 전망"},
-    "PPL": {"name": "프리메이라리가",      "role": "프리메이라리가 전문 축구 애널리스트",      "standings_label": "프리메이라리가 순위 (상위 5팀)", "section3": "프리메이라리가 순위 전망"},
-}
-
-
+# 리그별 프롬프트 메타는 week1/league_registry.py에서 가져온다.
+# 예전엔 이 파일에 별도 딕셔너리를 직접 정의해서, insight_node()의
+# OpenAI 시스템 메시지가 "당신은 EPL 애널리스트입니다"로 고정 출력되던
+# 문제가 있었다 — 이제 레지스트리 하나만 고치면 여기도 같이 반영된다.
 def _get_league_meta(state: FootballNewsState) -> dict:
     league_code = state.get("config", {}).get("league", "PL")
-    return _LEAGUE_META.get(league_code, _LEAGUE_META["PL"])
+    meta = _LEAGUES.get(league_code, _LEAGUES["PL"])
+    return {
+        "name": meta["full_name"],
+        "role": meta["prompt_role"],
+        "standings_label": meta["standings_label"],
+        "section3": meta["section3_label"],
+    }
 
 
 def _build_insight_prompt(state: FootballNewsState) -> str:

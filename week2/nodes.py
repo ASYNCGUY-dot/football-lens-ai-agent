@@ -31,18 +31,15 @@ if WEEK1_PATH not in sys.path:
     sys.path.insert(0, WEEK1_PATH)
 
 from state import FootballNewsState
+from league_registry import LEAGUES as _LEAGUES
 
 logger = logging.getLogger(__name__)
 
-# merge_node/insight_node에서 리포트 섹션 제목에 쓰는 짧은 리그 표기.
+# merge_node에서 리포트 섹션 제목에 쓰는 짧은 리그 표기.
 # 예전엔 "EPL 경기 분석"이 리그와 무관하게 하드코딩돼 있어서, K리그·
 # 브라질세리에A 등을 선택해도 리포트 본문에 계속 "EPL"이 찍혔다.
-_LEAGUE_SHORT_NAME: dict = {
-    "WC": "월드컵", "PL": "EPL", "KL1": "K리그", "PD": "라리가",
-    "BL1": "분데스리가", "SA": "세리에A", "FL1": "리그앙",
-    "CL": "챔피언스리그", "BSA": "브라질 세리에A", "CLI": "코파 리베르타도레스",
-    "ELC": "EFL 챔피언십", "DED": "에레디비시", "PPL": "프리메이라리가",
-}
+# 이제 week1/league_registry.py의 short_name을 그대로 쓴다.
+_LEAGUE_SHORT_NAME: dict = {code: meta["short_name"] for code, meta in _LEAGUES.items()}
 
 
 def _filter_by_league(
@@ -189,16 +186,12 @@ def collect_node(state: FootballNewsState) -> dict:
         logger.error(msg)
         errors.append(msg)
 
-    # ── Reddit RSS 수집 (API 키 불필요) ───────────────────
-    try:
-        from collectors.reddit_collector import RedditCollector
-        reddit_collector = RedditCollector(max_per_sub=8)
-        reddit_posts = reddit_collector.collect_all()
-        logger.info(f"[collect_node] Reddit 수집: {len(reddit_posts)}건")
-    except Exception as e:
-        msg = f"Reddit 수집 오류: {e}"
-        logger.warning(msg)
-        # Reddit은 선택적 소스 — errors에 추가하지 않음
+    # Reddit 수집기는 제거했다(2026-07-22) — 고정 6개 서브레딧(r/soccer,
+    # r/PremierLeague 등)이 항상 EPL/K리그 위주라 다른 리그를 선택해도
+    # 무관한 콘텐츠만 나왔고, 화면에도 리그 필터 없이 그대로 노출됐다.
+    # 게다가 실제로는 거의 항상 429(rate limit)에 걸려 신뢰할 수 없는
+    # 소스였다. reddit_posts는 항상 빈 리스트로 유지한다(state 키
+    # 자체는 다른 곳에서 .get()으로 안전하게 참조하므로 스키마는 유지).
 
     # ── YouTube 영상 수집 ────────────────────────────────
     try:

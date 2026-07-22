@@ -372,9 +372,14 @@ class TestFullPipeline(unittest.TestCase):
             self.skipTest(f"import 실패: {e}")
 
         state = create_initial_state()
-        # 한국어 기사 1개 주입
+        # 한국어 기사 1개 주입 — classify_node는 이제 리그 무관 기사를
+        # 걸러내므로(_filter_by_league, 2026-07-22 추가), 제목에 기본
+        # 리그(PL)의 실제 키워드를 넣어야 필터를 통과해 has_korean이
+        # True로 잡힌다. 예전엔 "테스트"처럼 무관한 제목도 통과했었는데,
+        # 그건 그 무렵 존재하던 "0건이면 원본 반환" 안전장치 때문이었고
+        # 지금은 의도적으로 없앤 동작이다.
         state["raw_articles"] = [
-            {"article_id": "test001", "title": "테스트", "language": "ko",
+            {"article_id": "test001", "title": "손흥민 EPL 멀티골 활약", "language": "ko",
              "url": "http://test.com", "summary": "테스트 요약"},
         ]
         result = classify_node(state)

@@ -178,23 +178,8 @@ def render_daily_report(result: dict, language: str, league: str = None):
             with col_l if i % 2 == 0 else col_r:
                 render_news_card(article)
 
-    # ── Reddit 커뮤니티 포스트 ────────────────────────────
-    reddit_posts = result.get("reddit_posts", [])
-    if reddit_posts:
-        st.markdown("<br>", unsafe_allow_html=True)
-        espn_section("💬", "Reddit Football Community", len(reddit_posts))
-        for post in reddit_posts[:6]:
-            sub = post.get("subreddit", "")
-            title = (post.get("title") or "")[:70]
-            url   = post.get("url", "#")
-            pub   = str(post.get("published_at", ""))[:10]
-            _html(f"""
-<div style="background:#FFFFFF;border-radius:4px;padding:10px 16px;margin-bottom:6px;box-shadow:0 1px 3px rgba(0,0,0,0.05);display:flex;align-items:center;gap:12px;">
-<span style="background:#FF4500;color:#FFF;border-radius:2px;padding:2px 7px;font-size:10px;font-family:Oswald,sans-serif;font-weight:700;flex-shrink:0;">r/{sub}</span>
-<a href="{url}" target="_blank" style="font-size:13px;color:#1A1A1A;text-decoration:none;flex:1;">{title}</a>
-<span style="font-size:11px;color:#888;flex-shrink:0;">{pub}</span>
-</div>
-""")
+    # Reddit 커뮤니티 섹션은 뺐다 — 수집기 자체를 제거했다(week2/nodes.py
+    # 주석 참고: 고정 서브레딧이 리그 무관이었고 rate limit도 심했음).
 
     # ── 득점 순위 미니 테이블 ─────────────────────────────
     top_scorers = result.get("top_scorers", [])

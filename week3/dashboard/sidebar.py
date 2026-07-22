@@ -11,6 +11,7 @@ import streamlit as st
 from constants import LOGO_WHITE
 from components import _html
 from token_tracker import summarize_usage
+from league_registry import LEAGUES as _LEAGUES, SIDEBAR_ORDER as _SIDEBAR_ORDER
 
 
 @st.cache_data(ttl=60, show_spinner=False)
@@ -39,11 +40,9 @@ def render_sidebar() -> dict:
         st.caption("🏆 리그 / 대회")
         league = st.selectbox(
             "리그",
-            options=[
-                "EPL (프리미어리그)", "2026 FIFA 월드컵", "K리그1", "라리가", "분데스리가",
-                "세리에A", "리그앙", "챔피언스리그", "브라질세리에A", "코파리베르타도레스",
-                "EFL 챔피언십", "에레디비시", "프리메이라리가",
-            ],
+            # week1/league_registry.py의 SIDEBAR_ORDER 순서대로 표시.
+            # 리그를 추가할 땐 이제 그 파일 하나만 고치면 여기도 자동 반영된다.
+            options=[_LEAGUES[code]["sidebar_name"] for code in _SIDEBAR_ORDER],
             index=0,
             label_visibility="collapsed",
         )

@@ -278,15 +278,20 @@ def _page1(pdf: _ReportPDF, result: dict, league_name: str, articles: list,
     tile_h = 16
     gap = 4
     tile_w = (CONTENT_W - 2 * gap) / 3
-    from prediction_tracker import get_accuracy_summary
-    acc = get_accuracy_summary()
-    acc_txt = f"{acc['accuracy_pct']}%" if acc["total"] > 0 else "N/A"
+    # "예측 적중률" 타일은 뺐다 — 경기 예측 기능 자체를 제거해서
+    # (prediction_tracker.py도 함께 삭제, 2026-07-22) 더 이상 의미가
+    # 없다. 대신 이미 갖고 있는 실데이터로 "긍정 기사 비율"을 채운다.
+    sentiments_list = list(sentiments_by_id.values())
+    positive_pct = "N/A"
+    if sentiments_list:
+        pos_count = sum(1 for s in sentiments_list if s.get("sentiment_label") == "긍정")
+        positive_pct = f"{round(pos_count / len(sentiments_list) * 100)}%"
     gap_txt = "N/A"
     if len(standings) >= 2:
         gap_txt = f"{abs((standings[0].get('points') or 0) - (standings[1].get('points') or 0))}pt"
     tiles = [
         (str(len(transfer_rumors)), "이적 루머"),
-        (acc_txt, "예측 적중률"),
+        (positive_pct, "긍정 기사 비율"),
         (gap_txt, "1·2위 격차"),
     ]
     for i, (val, cap) in enumerate(tiles):

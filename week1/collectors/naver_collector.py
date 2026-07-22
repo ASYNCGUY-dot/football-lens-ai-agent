@@ -92,139 +92,21 @@ DEFAULT_KEYWORDS = [
     "FIFA 월드컵",
 ]
 
-# ── 리그별 집중 키워드 ──────────────────────────────────────
-# 이 목록들은 두 가지로 쓰인다: (1) 네이버 검색 API 쿼리, (2) week2/nodes.py
-# classify_node의 리그 필터 키워드(korean_articles/english_articles 둘 다
-# 이 목록으로 매칭한다). 한글 키워드만 있으면 RSS 등에서 수집된 영어 기사가
-# 전부 매칭 실패로 걸러져 사라지는 문제가 있어서, 영어 표기도 함께 넣는다.
-WC_KEYWORDS = [
-    # 대회 전체
-    "2026 월드컵", "FIFA 월드컵", "북중미 월드컵", "월드컵 2026",
-    "world cup", "fifa world cup", "2026 world cup",
-    # 한국 대표팀
-    "월드컵 한국", "태극전사", "국가대표 월드컵",
-    "월드컵 손흥민", "월드컵 이강인", "월드컵 황희찬",
-    "월드컵 조규성", "월드컵 김민재", "월드컵 황인범",
-    # 경기 단계
-    "월드컵 조별리그", "월드컵 16강", "월드컵 8강",
-    "월드컵 4강", "월드컵 결승", "월드컵 경기결과",
-    "월드컵 경기일정", "월드컵 득점",
-    # 주요 국가 / 강팀
-    "월드컵 브라질", "월드컵 아르헨티나", "월드컵 프랑스",
-    "월드컵 잉글랜드", "월드컵 독일", "월드컵 스페인",
-    "월드컵 포르투갈", "월드컵 네덜란드",
-    # 스타 플레이어
-    "월드컵 음바페", "월드컵 네이마르", "월드컵 메시",
-    "월드컵 홀란드", "월드컵 살라",
-]
+# 리그별 키워드 및 LEAGUE_KEYWORD_MAP은 week1/league_registry.py로
+# 이전했다 — 예전엔 이 파일에 직접 정의돼 있었는데, constants.py의
+# 화면 필터 키워드와 따로 관리되다 보니 두 목록이 어긋나는 버그가
+# 반복됐다(예: 브라질세리에A의 "브라질" 단독 키워드가 한쪽에만 남아있던
+# 사례, 2026-07-22). 이제 league_registry.py 하나만 고치면 수집·필터·
+# 화면 표시가 전부 같이 반영된다.
+import sys as _sys
+import os as _os
+_WEEK1_PATH = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+if _WEEK1_PATH not in _sys.path:
+    _sys.path.insert(0, _WEEK1_PATH)
+from league_registry import LEAGUES as _LEAGUES
 
-EPL_KEYWORDS = [
-    "EPL", "프리미어리그", "이적시장", "premier league",
-    "맨체스터시티", "리버풀", "아스날", "첼시",
-    "토트넘", "맨체스터유나이티드",
-    "manchester city", "liverpool", "arsenal", "chelsea",
-    "tottenham", "manchester united",
-    "손흥민", "황희찬", "son heung-min",
-    "홀란드", "살라", "벨링엄", "haaland", "salah", "bellingham",
-]
+LEAGUE_KEYWORD_MAP: dict = {code: meta["keywords"] for code, meta in _LEAGUES.items()}
 
-KLEAGUE_KEYWORDS = [
-    "K리그", "K리그1", "한국 프로축구", "k league", "k-league",
-    "전북현대", "울산HD", "FC서울", "수원삼성",
-    "포항스틸러스", "대구FC", "광주FC",
-    "jeonbuk", "ulsan hd", "fc seoul",
-    "K리그 순위", "K리그 경기결과",
-]
-
-LALIGA_KEYWORDS = [
-    "라리가", "스페인 축구", "la liga", "laliga",
-    "레알마드리드", "바르셀로나", "아틀레티코마드리드",
-    "real madrid", "barcelona", "atletico madrid",
-    "야말", "비니시우스", "이강인", "yamal", "vinicius",
-]
-
-BUNDESLIGA_KEYWORDS = [
-    "분데스리가", "독일 축구", "bundesliga",
-    "바이에른뮌헨", "도르트문트", "레버쿠젠",
-    "bayern munich", "borussia dortmund", "bayer leverkusen",
-    "케인", "무시알라", "어데예미", "kane", "musiala",
-]
-
-SERIEA_KEYWORDS = [
-    "세리에A", "이탈리아 축구", "serie a",
-    "인테르밀란", "유벤투스", "AC밀란", "나폴리",
-    "inter milan", "juventus", "ac milan", "napoli",
-    "루카쿠", "마르티네스", "lukaku",
-]
-
-LIGUE1_KEYWORDS = [
-    "리그앙", "프랑스 축구", "ligue 1",
-    "PSG", "파리생제르맹", "모나코", "마르세유",
-    "paris saint-germain", "monaco", "marseille",
-    "음바페", "mbappe",
-]
-
-CHAMPIONS_LEAGUE_KEYWORDS = [
-    "챔피언스리그", "UCL", "UEFA챔피언스리그", "champions league",
-    "맨체스터시티", "레알마드리드", "바이에른뮌헨", "PSG",
-    "리버풀", "아스날", "인테르밀란", "바르셀로나",
-    "manchester city", "real madrid", "bayern munich",
-]
-
-BRASILEIRAO_KEYWORDS = [
-    "브라질세리에A", "브라질리안세리에A", "브라지레이랑", "브라질 축구",
-    "brasileirao", "brazilian serie a",
-    "팔메이라스", "플라멩구", "플루미넨시", "브라간치누",
-    "파라나엔세", "코린치안스", "상파울루FC", "그레미우",
-    "palmeiras", "flamengo", "fluminense", "bragantino",
-]
-
-LIBERTADORES_KEYWORDS = [
-    "코파리베르타도레스", "리베르타도레스", "남미 클럽대항전", "copa libertadores",
-    "보카주니어스", "리버플레이트", "플라멩구", "팔메이라스",
-    "그레미우", "인테르나시오나우", "코린치안스",
-    "boca juniors", "river plate", "gremio", "internacional", "corinthians",
-    # "산투스"/"santos"는 일부러 뺐다 — Santos FC를 노린 키워드였는데
-    # 실제로는 흔한 성씨(예: Andrey Santos 선수)와 겹쳐서 무관한 이적
-    # 기사가 걸리는 오탐이 발생했다(2026-07-22, 맨유 이적 기사 오탐 확인).
-    # 클럽 자체를 지칭할 땐 "산투스FC"처럼 항상 FC가 붙어 나오므로, 필요하면
-    # "산투스fc"/"santos fc"처럼 더 구체적인 형태로만 다시 추가할 것.
-]
-
-CHAMPIONSHIP_KEYWORDS = [
-    "EFL챔피언십", "잉글랜드 2부", "championship",
-    "리즈유나이티드", "셰필드유나이티드", "선덜랜드", "노리치시티", "웨스트브롬",
-    "leeds united", "sheffield united", "sunderland", "norwich city", "west brom",
-]
-
-EREDIVISIE_KEYWORDS = [
-    "에레디비시", "네덜란드 리그", "eredivisie",
-    "아약스", "PSV에인트호번", "페예노르트", "AZ알크마르",
-    "ajax", "psv eindhoven", "feyenoord", "az alkmaar",
-]
-
-PRIMEIRA_LIGA_KEYWORDS = [
-    "프리메이라리가", "포르투갈 리그", "primeira liga",
-    "벤피카", "포르투", "스포르팅CP", "브라가",
-    "benfica", "porto", "sporting cp", "braga",
-]
-
-# league_code → 키워드 매핑
-LEAGUE_KEYWORD_MAP: dict = {
-    "WC":  WC_KEYWORDS,
-    "PL":  EPL_KEYWORDS,
-    "KL1": KLEAGUE_KEYWORDS,
-    "PD":  LALIGA_KEYWORDS,
-    "BL1": BUNDESLIGA_KEYWORDS,
-    "SA":  SERIEA_KEYWORDS,
-    "FL1": LIGUE1_KEYWORDS,
-    "CL":  CHAMPIONS_LEAGUE_KEYWORDS,
-    "BSA": BRASILEIRAO_KEYWORDS,
-    "CLI": LIBERTADORES_KEYWORDS,
-    "ELC": CHAMPIONSHIP_KEYWORDS,
-    "DED": EREDIVISIE_KEYWORDS,
-    "PPL": PRIMEIRA_LIGA_KEYWORDS,
-}
 
 # 네이버 뉴스 검색 API 엔드포인트
 NAVER_NEWS_API_URL = "https://openapi.naver.com/v1/search/news.json"

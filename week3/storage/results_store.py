@@ -28,6 +28,12 @@ logger = logging.getLogger(__name__)
 # week3/storage/results_store.py -> week3 -> 프로젝트 루트
 RESULTS_DIR = Path(__file__).resolve().parents[2] / "results"
 
+# 실행마다 결과가 계속 쌓이기만 하고 정리되는 곳이 없어서(2026-07-22
+# 확인 시점 21건·12MB), 최근 N건만 남기는 보관 정책을 둔다. 평균
+# 파일 크기(~600KB) 기준으로 이 정도면 디스크 부담 없이 충분한 이력을
+# 유지한다.
+MAX_RESULTS = 50
+
 
 def _json_default(obj: Any) -> str:
     """json.dump가 기본으로 처리 못 하는 타입(datetime 등)을 문자열로 변환"""
@@ -76,7 +82,33 @@ def save_result(result: dict, run_id: Optional[str] = None) -> Path:
         json.dump(payload, f, ensure_ascii=False, indent=2, default=_json_default)
 
     logger.info(f"파이프라인 결과 저장: {path}")
+    _prune_old_results()
     return path
+
+
+def _prune_old_results() -> int:
+    """
+    MAX_RESULTS건을 초과하는 오래된 결과 파일을 정리한다.
+
+    Returns
+    -------
+    int
+        삭제한 파일 수
+    """
+    if not RESULTS_DIR.exists():
+        return 0
+    files = sorted(RESULTS_DIR.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+    to_delete = files[MAX_RESULTS:]
+    deleted = 0
+    for f in to_delete:
+        try:
+            f.unlink()
+            deleted += 1
+        except OSError as e:
+            logger.warning(f"오래된 결과 삭제 실패 ({f}): {e}")
+    if deleted:
+        logger.info(f"오래된 결과 {deleted}건 정리 (최근 {MAX_RESULTS}건만 유지)")
+    return deleted
 
 
 def list_results(limit: int = 20) -> list[dict]:

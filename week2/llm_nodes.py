@@ -27,12 +27,20 @@ API 키 설정 (.env):
 """
 
 import os
+import sys
 import logging
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 
-from state import FootballNewsState, SummaryResult, MatchAnalysisResult, SentimentResult, MatchPredictionResult
+# week1 모듈(league_registry) import용 경로 추가 — nodes.py가 먼저
+# import되면 이미 잡혀있지만, 이 파일 단독 실행/테스트 시에도 안전하게.
+_WEEK1_PATH = os.path.join(os.path.dirname(__file__), "..", "week1")
+if _WEEK1_PATH not in sys.path:
+    sys.path.insert(0, _WEEK1_PATH)
+
+from state import FootballNewsState, SummaryResult, MatchAnalysisResult, SentimentResult
 from token_tracker import make_usage_record, usage_from_anthropic, usage_from_openai, usage_from_gemini
+from league_registry import LEAGUES as _LEAGUES
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -389,14 +397,7 @@ def summarize_english_node(state: FootballNewsState) -> dict:
 
     articles_text = _format_articles_for_prompt(articles, max_count=15)
 
-    _LEAGUE_EN_NAME = {
-        "WC": "the 2026 FIFA World Cup", "PL": "the English Premier League",
-        "KL1": "the Korean K League 1", "PD": "La Liga", "BL1": "the Bundesliga",
-        "SA": "Serie A", "FL1": "Ligue 1", "CL": "the UEFA Champions League",
-        "BSA": "the Brazilian Serie A", "CLI": "the Copa Libertadores",
-        "ELC": "the EFL Championship", "DED": "the Dutch Eredivisie", "PPL": "the Portuguese Primeira Liga",
-    }
-    league_en = _LEAGUE_EN_NAME.get(league_code, "football")
+    league_en = _LEAGUES.get(league_code, {}).get("en_name", "football")
 
     # System 프롬프트 — 예전엔 리그와 무관하게 항상 "Premier League 전문
     # 에디터" 페르소나로 고정돼 있어서, 다른 리그를 선택해도 계속 EPL
@@ -644,14 +645,7 @@ def analyze_match_node(state: FootballNewsState) -> dict:
     standings_text = _format_standings_for_prompt(standings, top_n=10)
 
     # ── 리그별 시스템 프롬프트 ─────────────────────────────────
-    _LEAGUE_NAMES = {
-        "PL": "EPL 프리미어리그", "PD": "라리가", "BL1": "분데스리가",
-        "SA": "세리에A", "FL1": "리그앙", "KL1": "K리그1",
-        "WC": "2026 FIFA 월드컵", "CL": "UEFA 챔피언스리그",
-        "BSA": "브라질 세리에A", "CLI": "코파 리베르타도레스",
-        "ELC": "EFL 챔피언십", "DED": "에레디비시", "PPL": "프리메이라리가",
-    }
-    league_display = _LEAGUE_NAMES.get(league_code, "축구 리그")
+    league_display = _LEAGUES.get(league_code, {}).get("full_name", "축구 리그")
 
     system_prompt = f"""당신은 {league_display} 전문 데이터 분석가입니다.
 제공된 최근 경기 결과와 순위표를 분석하여 한국 축구 팬들을 위한 인사이트를 제공합니다.
@@ -910,321 +904,3 @@ Return ONLY valid JSON array, no markdown."""
         "llm_usage": [usage_rec] if usage_rec else [],
     }
 
-
-# =============================================
-# 노드 ⑧: 경기 예측
-# =============================================
-
-def _parse_structured_predictions(text: str, upcoming: list[dict]) -> list[dict]:
-    """
-    LLM이 만든 자유 텍스트 예측을 구조화된 리스트로 파싱하고, upcoming_matches
-    와 팀명을 매칭해 match_id/경기 날짜를 붙인다.
-
-    예전엔 "**팀A vs 팀B**" 줄 하나만 저장해서 나중에 실제 결과와 자동으로
-    대조할 방법이 없었다. 이 함수는 예측 결과(홈승/무/원정승 표준값),
-    신뢰도, match_id까지 구조화해 week3/prediction_tracker.py가 나중에
-    실제 경기 결과와 비교할 수 있게 한다.
-
-    팀명 매칭이 실패하면(LLM이 placeholder를 그대로 썼거나 팀명 표기가
-    다르면) predicted_outcome/match_id는 None으로 남는다 — 이 경우 정확도
-    판정에서 조용히 건너뛴다.
-    """
-    preds: list[dict] = []
-    current: dict | None = None
-
-    def _finalize(entry: dict | None) -> None:
-        if not entry:
-            return
-        home, away = entry.get("home_team", ""), entry.get("away_team", "")
-        pred_text = entry.get("prediction_raw", "")
-
-        outcome = None
-        if "무승부" in pred_text:
-            outcome = "DRAW"
-        elif home and home in pred_text:
-            outcome = "HOME_TEAM"
-        elif away and away in pred_text:
-            outcome = "AWAY_TEAM"
-        entry["predicted_outcome"] = outcome
-
-        matched = None
-        for m in upcoming:
-            m_home, m_away = m.get("home_team_name", ""), m.get("away_team_name", "")
-            if home and away and m_home and m_away and (
-                (home == m_home and away == m_away)
-                or (home in m_home and away in m_away)
-                or (m_home in home and m_away in away)
-            ):
-                matched = m
-                break
-        if matched:
-            entry["match_id"] = matched.get("match_id")
-            entry["utc_date"] = matched.get("utc_date")
-        else:
-            entry["match_id"] = None
-            entry["utc_date"] = None
-
-        preds.append(entry)
-
-    for ln in text.split("\n"):
-        stripped = ln.strip()
-        if "vs" in stripped.lower() and "**" in stripped:
-            _finalize(current)
-            match_str = stripped.replace("**", "").strip(" -•")
-            idx = match_str.lower().find(" vs ")
-            if idx > 0:
-                home_team, away_team = match_str[:idx].strip(), match_str[idx + 4:].strip()
-            else:
-                home_team, away_team = "", ""
-            current = {
-                "match": match_str,
-                "home_team": home_team,
-                "away_team": away_team,
-                "prediction_raw": "",
-                "confidence": "",
-                "reason": "",
-            }
-        elif current is not None:
-            if stripped.startswith("- 예측:") or stripped.startswith("예측:"):
-                current["prediction_raw"] = stripped.split(":", 1)[-1].strip()
-            elif stripped.startswith("- 신뢰도:") or stripped.startswith("신뢰도:"):
-                current["confidence"] = stripped.split(":", 1)[-1].strip()
-            elif stripped.startswith("- 근거:") or stripped.startswith("근거:"):
-                current["reason"] = stripped.split(":", 1)[-1].strip()
-
-    _finalize(current)
-    return preds
-
-
-def match_prediction_node(state: FootballNewsState) -> dict:
-    """
-    다가오는 경기를 뉴스 감정 + 최근 경기 데이터 기반으로 예측합니다.
-
-    - 뉴스 감정 트렌드 (팀별 긍정/부정 기사 비율)
-    - 최근 경기 결과 (폼)
-    - 순위표 데이터
-
-    주의: 예측은 참고 목적이며 정확성을 보장하지 않습니다.
-    """
-    upcoming = state.get("upcoming_matches", [])
-    sentiments = state.get("article_sentiments", [])
-    standings = state.get("raw_standings", [])
-    league_code = state.get("config", {}).get("league", "PL")
-
-    logger.info(f"[match_prediction_node] 시작 | 예정경기 {len(upcoming)}건 | 리그 {league_code}")
-
-    # 예정 경기 없을 때: WC이면 뉴스 기반 예측 시도, 아니면 skip
-    if not upcoming:
-        if league_code != "WC":
-            return {"match_prediction": MatchPredictionResult(
-                model_used="skip", prediction_text="예정 경기 데이터 없음",
-                predictions=[], generated_at=_now_iso(), error=None,
-            )}
-        # WC: 뉴스 기사만으로 월드컵 전망 분석
-        logger.info("[match_prediction_node] WC 뉴스 기반 분석 시작")
-        all_articles = state.get("raw_articles", [])
-        wc_titles = [
-            f"- {a.get('title','')[:120]}"
-            for a in all_articles[:30]
-            if any(kw in f"{a.get('title','')} {a.get('summary','')}".lower()
-                   for kw in ["월드컵", "world cup", "worldcup", "2026 fifa", "korea", "한국"])
-        ]
-        if not wc_titles:
-            wc_titles = [f"- {a.get('title','')[:120]}" for a in all_articles[:15]]
-        articles_text = "\n".join(wc_titles) or "수집된 기사 없음"
-
-        wc_system = """당신은 2026 FIFA 월드컵 분석 전문가입니다.
-제공된 뉴스 기사 제목을 바탕으로 주요 팀 동향과 경기 전망을 분석하세요.
-
-출력 형식:
-## 🌍 2026 FIFA 월드컵 주요 분석
-(뉴스 기반 팀별 동향 3~5개 bullet)
-
-## 🔮 주목할 경기 전망
-(관련 팀 2~3경기 예측, 형식: **팀A vs 팀B** - 전망 1~2줄)
-
-## ⭐ 핵심 선수 주목
-(주요 선수 2~3명 간단 언급)
-
-마지막에: "※ 예측은 뉴스 기반 참고 정보이며 실제 결과를 보장하지 않습니다."
-
-한국어로 작성하세요."""
-
-        wc_user = f"다음 2026 FIFA 월드컵 관련 뉴스 기사 제목을 분석해주세요:\n\n{articles_text}"
-
-        for api_type, env_var, model_id in [
-            ("anthropic", "ANTHROPIC_API_KEY", "claude-3-5-haiku-20241022"),
-            ("openai",    "OPENAI_API_KEY",    "gpt-4o-mini"),
-            ("google",    "GOOGLE_API_KEY",    "gemini-flash-latest"),
-        ]:
-            key = _clean_api_key(os.getenv(env_var))
-            if not key:
-                continue
-            try:
-                if api_type == "anthropic":
-                    import anthropic
-                    client = anthropic.Anthropic(api_key=key)
-                    resp = client.messages.create(
-                        model=model_id, max_tokens=1200,
-                        system=wc_system,
-                        messages=[{"role": "user", "content": wc_user}],
-                    )
-                    text = resp.content[0].text
-                    in_tok, out_tok = usage_from_anthropic(resp)
-                elif api_type == "openai":
-                    from openai import OpenAI
-                    client = OpenAI(api_key=key)
-                    resp = client.chat.completions.create(
-                        model=model_id, max_tokens=1200,
-                        messages=[{"role": "system", "content": wc_system},
-                                  {"role": "user", "content": wc_user}],
-                    )
-                    text = resp.choices[0].message.content
-                    in_tok, out_tok = usage_from_openai(resp)
-                else:
-                    import google.generativeai as genai
-                    genai.configure(api_key=key)
-                    m = genai.GenerativeModel(model_name=model_id, system_instruction=wc_system)
-                    resp = m.generate_content(wc_user)
-                    text = resp.text
-                    in_tok, out_tok = usage_from_gemini(resp)
-                logger.info(f"[match_prediction_node] WC 뉴스 분석 완료 ({api_type})")
-                return {
-                    "match_prediction": MatchPredictionResult(
-                        model_used=model_id,
-                        prediction_text=text,
-                        predictions=[],
-                        generated_at=_now_iso(),
-                        error=None,
-                    ),
-                    "llm_usage": [make_usage_record(api_type, model_id, in_tok, out_tok, "match_prediction_node")],
-                }
-            except Exception as e:
-                logger.warning(f"[match_prediction_node] WC 뉴스 분석 실패 ({api_type}): {e}")
-
-        return {"match_prediction": MatchPredictionResult(
-            model_used="skip",
-            prediction_text="월드컵 예측을 생성하려면 LLM API 키가 필요합니다.",
-            predictions=[], generated_at=_now_iso(), error=None,
-        )}
-
-    # 팀별 감정 집계
-    team_sentiment: dict[str, list[float]] = {}
-    for s in sentiments:
-        title = (s.get("title") or "").lower()
-        TEAMS_MAP = {
-            "맨시티": ["맨시티", "manchester city", "man city"],
-            "리버풀": ["리버풀", "liverpool"],
-            "아스날": ["아스날", "arsenal"],
-            "첼시":   ["첼시", "chelsea"],
-            "토트넘": ["토트넘", "tottenham", "spurs"],
-            "맨유":   ["맨유", "manchester united", "man utd"],
-        }
-        for team, aliases in TEAMS_MAP.items():
-            if any(alias in title for alias in aliases):
-                team_sentiment.setdefault(team, []).append(s.get("sentiment_score", 0))
-
-    team_avg_sentiment = {
-        t: round(sum(v) / len(v), 2) for t, v in team_sentiment.items() if v
-    }
-
-    # 순위표 상위 10팀
-    standings_text = _format_standings_for_prompt(standings, top_n=10)
-
-    # 예정 경기 텍스트
-    upcoming_text = "\n".join(
-        f"- {m.get('utc_date','')[:10]} | {m.get('home_team_name','?')} vs {m.get('away_team_name','?')}"
-        for m in upcoming[:8]
-    )
-
-    # 감정 텍스트
-    sentiment_text = "\n".join(
-        f"- {t}: 평균 감정 {v:+.2f}" for t, v in team_avg_sentiment.items()
-    ) or "감정 데이터 없음"
-
-    system_prompt = (
-        "당신은 EPL 데이터 분석가입니다.\n"
-        "제공된 순위표, 팀별 뉴스 감정 점수를 바탕으로 다가오는 경기를 예측합니다.\n\n"
-        "출력 형식 (반드시 준수):\n"
-        "각 경기마다 다음 형식으로 작성:\n"
-        "**[홈팀] vs [원정팀]**\n"
-        "- 예측: [홈팀 승 / 무승부 / 원정팀 승]\n"
-        "- 신뢰도: [높음 / 중간 / 낮음]\n"
-        "- 근거: (2줄 이내, 순위/폼/뉴스 감정 기반)\n\n"
-        "마지막에 면책문구: "
-        "'※ 위 예측은 데이터 기반 참고 정보이며 실제 결과를 보장하지 않습니다.'\n\n"
-        "제공된 데이터에 없는 정보는 추측하지 마세요."
-    )
-
-    user_prompt = (
-        f"다음은 현재 리그 데이터와 예정 경기 목록입니다.\n\n"
-        f"=== 현재 순위표 (상위 10팀) ===\n"
-        f"{standings_text or '순위표 없음'}\n\n"
-        f"=== 예정 경기 (향후 7일) ===\n"
-        f"{upcoming_text or '예정 경기 없음'}\n\n"
-        f"=== 팀별 뉴스 감정 지수 ===\n"
-        f"{sentiment_text}\n\n"
-        "위 데이터를 기반으로 예정 경기를 예측해 주세요."
-    )
-
-    for api_type, env_var, model_id in [
-        ("anthropic", "ANTHROPIC_API_KEY", "claude-3-5-haiku-20241022"),
-        ("openai",    "OPENAI_API_KEY",    "gpt-4o-mini"),
-        ("google",    "GOOGLE_API_KEY",    "gemini-flash-latest"),
-    ]:
-        key = _clean_api_key(os.getenv(env_var))
-        if not key:
-            continue
-        try:
-            if api_type == "anthropic":
-                import anthropic
-                client = anthropic.Anthropic(api_key=key)
-                resp = client.messages.create(
-                    model=model_id, max_tokens=1500,
-                    system=system_prompt,
-                    messages=[{"role": "user", "content": user_prompt}],
-                )
-                text = resp.content[0].text
-                in_tok, out_tok = usage_from_anthropic(resp)
-            elif api_type == "openai":
-                from openai import OpenAI
-                client = OpenAI(api_key=key)
-                resp = client.chat.completions.create(
-                    model=model_id, max_tokens=1500,
-                    messages=[{"role": "system", "content": system_prompt},
-                              {"role": "user", "content": user_prompt}],
-                )
-                text = resp.choices[0].message.content
-                in_tok, out_tok = usage_from_openai(resp)
-            else:
-                import google.generativeai as genai
-                genai.configure(api_key=key)
-                m = genai.GenerativeModel(model_name=model_id, system_instruction=system_prompt)
-                resp = m.generate_content(user_prompt,
-                    generation_config=genai.types.GenerationConfig(max_output_tokens=1500))
-                text = resp.text
-                in_tok, out_tok = usage_from_gemini(resp)
-
-            preds = _parse_structured_predictions(text, upcoming)
-
-            logger.info(f"[match_prediction_node] {api_type} 완료 | 경기 {len(preds)}건 예측")
-            return {
-                "match_prediction": MatchPredictionResult(
-                    model_used=model_id,
-                    prediction_text=text,
-                    predictions=preds,
-                    generated_at=_now_iso(),
-                    error=None,
-                ),
-                "llm_usage": [make_usage_record(api_type, model_id, in_tok, out_tok, "match_prediction_node")],
-            }
-        except Exception as e:
-            logger.warning(f"[match_prediction_node] {api_type} 실패: {e}")
-
-    return {"match_prediction": MatchPredictionResult(
-        model_used="mock",
-        prediction_text="[API 키 없음] 경기 예측을 생성하려면 LLM API 키가 필요합니다.",
-        predictions=[],
-        generated_at=_now_iso(),
-        error="API key not found",
-    )}

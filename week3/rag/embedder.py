@@ -99,9 +99,19 @@ class ArticleEmbedder:
         model_name : str, optional
             sentence-transformers 모델명. 미입력 시 EMBEDDING_MODEL 환경변수 사용.
         """
-        self.persist_dir = persist_dir or os.getenv(
-            "CHROMA_PERSIST_DIR", "./chroma_db"
-        )
+        # CHROMA_PERSIST_DIR이 상대경로("./chroma_db")면 이 값은 프로세스의
+        # cwd를 기준으로 풀리는데, streamlit을 프로젝트 루트/week3/
+        # week3/dashboard 중 어디서 실행하느냐에 따라 매번 다른 폴더가
+        # 생겨 데이터가 흩어지는 문제가 있었다(2026-07-22, 실제로 세
+        # 군데에 서로 다른 chroma_db가 쌓여 있던 걸 확인함). 상대경로일
+        # 때는 이 파일 기준(week3/) 절대경로로 고정해서 실행 위치와
+        # 무관하게 항상 같은 DB를 가리키도록 한다.
+        _raw_dir = persist_dir or os.getenv("CHROMA_PERSIST_DIR", "./chroma_db")
+        if os.path.isabs(_raw_dir):
+            self.persist_dir = _raw_dir
+        else:
+            _week3_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            self.persist_dir = os.path.abspath(os.path.join(_week3_root, _raw_dir))
         self.model_name = model_name or os.getenv(
             "EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"
         )

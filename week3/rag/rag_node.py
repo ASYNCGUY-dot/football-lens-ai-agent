@@ -33,7 +33,13 @@ WEEK2_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "week2")
 if WEEK2_PATH not in sys.path:
     sys.path.insert(0, WEEK2_PATH)
 
+# week1 league_registry 임포트
+WEEK1_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "week1")
+if WEEK1_PATH not in sys.path:
+    sys.path.insert(0, WEEK1_PATH)
+
 from state import FootballNewsState
+from league_registry import LEAGUES as _LEAGUES
 
 
 def _build_queries(state: FootballNewsState) -> list[str]:
@@ -52,24 +58,10 @@ def _build_queries(state: FootballNewsState) -> list[str]:
     """
     queries = set()
 
-    # 리그별 기본 쿼리
+    # 리그별 기본 쿼리 — week1/league_registry.py의 rag_queries에서 가져온다.
     league_code = state.get("config", {}).get("league", "PL")
-    _LEAGUE_DEFAULT_QUERIES = {
-        "WC":  ["2026 FIFA 월드컵 경기 결과", "월드컵 한국 대표팀 조별리그"],
-        "PL":  ["EPL 프리미어리그 경기 결과", "한국 선수 손흥민 이강인 황희찬"],
-        "KL1": ["K리그1 경기 결과", "한국 프로축구 순위"],
-        "PD":  ["라리가 경기 결과", "레알마드리드 바르셀로나"],
-        "BL1": ["분데스리가 경기 결과", "바이에른뮌헨 도르트문트"],
-        "SA":  ["세리에A 경기 결과", "인테르밀란 유벤투스"],
-        "FL1": ["리그앙 경기 결과", "PSG 파리생제르맹"],
-        "CL":  ["챔피언스리그 경기 결과", "챔피언스리그 8강"],
-        "BSA": ["브라질세리에A 경기 결과", "팔메이라스 플라멩구"],
-        "CLI": ["코파리베르타도레스 경기 결과", "보카주니어스 리버플레이트"],
-        "ELC": ["EFL 챔피언십 경기 결과", "리즈유나이티드 선덜랜드"],
-        "DED": ["에레디비시 경기 결과", "아약스 PSV에인트호번"],
-        "PPL": ["프리메이라리가 경기 결과", "벤피카 포르투"],
-    }
-    for q in _LEAGUE_DEFAULT_QUERIES.get(league_code, ["축구 경기 결과", "한국 선수"]):
+    default_queries = _LEAGUES.get(league_code, {}).get("rag_queries", ["축구 경기 결과", "한국 선수"])
+    for q in default_queries:
         queries.add(q)
 
     # 기사 제목 기반 쿼리
