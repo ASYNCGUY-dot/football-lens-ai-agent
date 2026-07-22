@@ -350,6 +350,42 @@ class TestFullPipeline(unittest.TestCase):
             self.assertIn("raw_articles", result)
             self.assertIn("errors", result)
 
+    def test_collect_node_skips_football_data_for_unsupported_league(self):
+        """
+        K리그처럼 league_registry.py에 unsupported_by_football_data=True로
+        표시된 리그는 football-data.org를 아예 호출하지 않아야 한다.
+
+        실측 결과 이 호출(경기/순위/득점왕/예정경기 4건) 하나가 K리그
+        수집 시간의 84%(27.04초 중 22.65초)를 차지했는데, 애초에 4번
+        전부 404가 나는 게 확실했다 — football-data.org 무료 플랜의
+        요청 간 rate-limit 대기(6.1초)만 4번 그냥 날리고 있었다
+        (2026-07-22). FootballDataCollector가 생성조차 안 되는지로
+        "건너뛰기"가 실제로 동작하는지 확인한다.
+        """
+        try:
+            from week2.nodes import collect_node
+            from week2.state import create_initial_state
+        except ImportError as e:
+            self.skipTest(f"import 실패: {e}")
+
+        import unittest.mock as mock
+
+        def _fail_if_instantiated(*args, **kwargs):
+            raise AssertionError("FootballDataCollector가 생성되면 안 되는 리그에서 생성됨")
+
+        with mock.patch.dict(os.environ, {
+            "NAVER_CLIENT_ID": "", "NAVER_CLIENT_SECRET": "",
+        }), mock.patch(
+            "collectors.football_data_collector.FootballDataCollector",
+            side_effect=_fail_if_instantiated,
+        ):
+            state = create_initial_state(config={"league": "KL1", "days_back": 7})
+            result = collect_node(state)
+            self.assertEqual(result["raw_matches"], [])
+            self.assertEqual(result["raw_standings"], [])
+            self.assertEqual(result["top_scorers"], [])
+            self.assertEqual(result["upcoming_matches"], [])
+
     def test_preprocess_node_with_empty(self):
         """빈 기사 목록에서 preprocess_node가 정상 동작하는지 확인"""
         try:

@@ -230,8 +230,18 @@ def collect_node(state: FootballNewsState) -> dict:
             logger.warning("[collect_node] 월드컵: football-data API 키 없음, 건너뜀")
         except Exception as e:
             logger.warning(f"[collect_node] 월드컵 데이터 수집 실패 (비중요): {e}")
+    elif _LEAGUES.get(league_code, {}).get("unsupported_by_football_data"):
+        # K리그처럼 football-data.org 무료 플랜이 아예 지원하지 않는
+        # 리그는 4개 엔드포인트(경기/순위/득점왕/예정경기) 전부 100%
+        # 404가 난다는 걸 이미 알고 있다(league_registry.py에 문서화됨).
+        # 그런데도 매번 실제로 호출했었고, football_data_collector.py의
+        # 요청 간 rate-limit 대기(RATE_LIMIT_DELAY=6.1초)가 각 호출 전에
+        # 걸려서 4번 다 실패하는데도 약 22초가 그냥 날아갔다(2026-07-22,
+        # 실측: RSS 1.5초·네이버 1.8초·YouTube 1.1초 대비 football-data만
+        # 22.65초). 애초에 될 리 없는 호출이니 아예 건너뛴다.
+        logger.info(f"[collect_node] {league_code}: football-data.org 미지원 리그, 경기 데이터 수집 건너뜀")
     else:
-        # 일반 리그 (EPL, 라리가, K리그 등)
+        # 일반 리그 (EPL, 라리가 등 football-data.org 지원 리그)
         try:
             from collectors.football_data_collector import FootballDataCollector
             fd_collector = FootballDataCollector(competition=league_code)
