@@ -123,6 +123,30 @@ def _format_standings_brief(standings: list[dict], top_n: int = 5) -> str:
     return "\n".join(lines)
 
 
+# 리그별 프롬프트 메타. PL 하나만 채워두고 나머지는 그냥 PL로 폴백하던
+# 예전 방식이 아니라(get()의 default가 아니라 dict 자체를 채워야 실제로
+# 적용된다) 지원 리그를 전부 채워뒀다 — insight_node()의 OpenAI 시스템
+# 메시지도 이 dict를 그대로 재사용해서 "당신은 EPL 애널리스트입니다"가
+# 리그와 무관하게 고정 출력되던 문제를 없앴다.
+_LEAGUE_META: dict = {
+    "WC":  {"name": "2026 FIFA 월드컵",  "role": "2026 FIFA 월드컵 전문 축구 애널리스트",  "standings_label": "조별리그 순위", "section3": "월드컵 순위 및 토너먼트 전망"},
+    "PL":  {"name": "EPL 프리미어리그",   "role": "EPL 및 한국 축구 전문 애널리스트",       "standings_label": "EPL 순위 (상위 5팀)", "section3": "EPL 순위 전망"},
+    "KL1": {"name": "K리그1",             "role": "K리그 전문 축구 애널리스트",             "standings_label": "K리그1 순위 (상위 5팀)", "section3": "K리그1 순위 전망"},
+    "PD":  {"name": "라리가",             "role": "라리가 전문 축구 애널리스트",            "standings_label": "라리가 순위 (상위 5팀)", "section3": "라리가 순위 전망"},
+    "BL1": {"name": "분데스리가",          "role": "분데스리가 전문 축구 애널리스트",         "standings_label": "분데스리가 순위 (상위 5팀)", "section3": "분데스리가 순위 전망"},
+    "SA":  {"name": "세리에A",            "role": "세리에A 전문 축구 애널리스트",           "standings_label": "세리에A 순위 (상위 5팀)", "section3": "세리에A 순위 전망"},
+    "FL1": {"name": "리그앙",             "role": "리그앙 전문 축구 애널리스트",            "standings_label": "리그앙 순위 (상위 5팀)", "section3": "리그앙 순위 전망"},
+    "CL":  {"name": "UEFA 챔피언스리그",  "role": "UEFA 챔피언스리그 전문 축구 애널리스트",  "standings_label": "조별 순위", "section3": "토너먼트 전망"},
+    "BSA": {"name": "브라질 세리에A",     "role": "브라질 세리에A 전문 축구 애널리스트",     "standings_label": "브라질 세리에A 순위 (상위 5팀)", "section3": "브라질 세리에A 순위 전망"},
+    "CLI": {"name": "코파 리베르타도레스", "role": "코파 리베르타도레스 전문 축구 애널리스트", "standings_label": "조별 순위", "section3": "토너먼트 전망"},
+}
+
+
+def _get_league_meta(state: FootballNewsState) -> dict:
+    league_code = state.get("config", {}).get("league", "PL")
+    return _LEAGUE_META.get(league_code, _LEAGUE_META["PL"])
+
+
 def _build_insight_prompt(state: FootballNewsState) -> str:
     """
     통합 인사이트 보고서 생성용 프롬프트를 구성합니다.
@@ -130,43 +154,21 @@ def _build_insight_prompt(state: FootballNewsState) -> str:
     """
     now_str = datetime.now(timezone.utc).strftime("%Y년 %m월 %d일")
 
-    league_code = state.get("config", {}).get("league", "PL")
-    _LEAGUE_META = {
-        "WC":  {"name": "2026 FIFA 월드컵",  "role": "2026 FIFA 월드컵 전문 축구 애널리스트",  "standings_label": "조별리그 순위", "section3": "월드컵 순위 및 토너먼트 전망"},
-        "PL":  {"name": "EPL 프리미어리그",   "role": "EPL 및 한국 축구 전문 애널리스트",       "standings_label": "EPL 순위 (상위 5팀)", "section3": "EPL 순위 전망"},
-        "KL1": {"name": "K리그1",             "role": "K리그 전문 축구 애널리스트",             "standings_label": "K리그1 순위 (상위 5팀)", "section3": "K리그1 순위 전망"},
-        "PD":  {"name": "라리가",             "role": "라리가 전문 축구 애널리스트",            "standings_label": "라리가 순위 (상위 5팀)", "section3": "라리가 순위 전망"},
-        "BL1": {"name": "분데스리가",          "role": "분데스리가 전문 축구 애널리스트",         "standings_label": "분데스리가 순위 (상위 5팀)", "section3": "분데스리가 순위 전망"},
-        "SA":  {"name": "세리에A",            "role": "세리에A 전문 축구 애널리스트",           "standings_label": "세리에A 순위 (상위 5팀)", "section3": "세리에A 순위 전망"},
-        "FL1": {"name": "리그앙",             "role": "리그앙 전문 축구 애널리스트",            "standings_label": "리그앙 순위 (상위 5팀)", "section3": "리그앙 순위 전망"},
-    }
-    meta = _LEAGUE_META.get(league_code, _LEAGUE_META["PL"])
+    meta = _get_league_meta(state)
     league_name     = meta["name"]
     analyst_role    = meta["role"]
     standings_label = meta["standings_label"]
     section3_name   = meta["section3"]
 
-    # 리그 관련 기사만 필터링
-    _LEAGUE_KEYWORDS = {
-        "WC":  ["월드컵", "world cup", "fifa 2026", "wc 2026", "국가대표", "태극전사"],
-        "PL":  ["epl", "프리미어리그", "premier league", "잉글랜드"],
-        "KL1": ["k리그", "k-league", "한국 프로축구"],
-        "PD":  ["라리가", "laliga", "la liga", "스페인"],
-        "BL1": ["분데스리가", "bundesliga", "독일"],
-        "SA":  ["세리에", "serie a", "이탈리아"],
-        "FL1": ["리그앙", "ligue 1", "프랑스"],
-    }
-    kws = _LEAGUE_KEYWORDS.get(league_code, [])
-    all_articles = state.get("raw_articles", [])
-    if kws:
-        league_articles = [
-            a for a in all_articles
-            if any(kw in (a.get("title","") + " " + a.get("summary","")).lower() for kw in kws)
-        ]
-        if len(league_articles) < 3:
-            league_articles = all_articles
-    else:
-        league_articles = all_articles
+    # 리그 관련 기사만 사용한다. classify_node(week2/nodes.py)가 이미
+    # korean_articles/english_articles를 선택 리그로 필터링해두므로, 여기서
+    # raw_articles를 별도의(더 허술한) 키워드 목록으로 다시 거르지 않는다
+    # — 예전엔 이 함수가 자체 필터를 또 갖고 있어서 두 필터가 어긋나면
+    # 오히려 관련 기사가 새는 문제가 있었다.
+    league_articles = state.get("korean_articles", []) + state.get("english_articles", [])
+    if not league_articles:
+        # classify_node 필터 결과가 비정상적으로 비었을 때의 안전판.
+        league_articles = state.get("raw_articles", [])
 
     article_titles = "\n".join(
         f"- {a.get('title','')[:60]}"
@@ -214,6 +216,13 @@ def _build_insight_prompt(state: FootballNewsState) -> str:
 5. **에디터 픽**: {league_name}에서 오늘 가장 흥미로운 스토리 하나 (2~3문장)
 
 ⚠️ 주의: {league_name} 외 다른 리그 내용은 절대 포함하지 마세요.
+⚠️ "주목 선수"에는 위 기사 제목에서 실제 사람 이름임이 분명한 경우에만 쓰세요.
+"GD"처럼 약어·별명·불확실한 표현을 실제 선수 이름으로 추측해 지어내지 마세요.
+⚠️ 후보가 부족하다고 다른 리그의 유명 선수(예: 호날두, 메시처럼 세계적으로
+유명하지만 {league_name}와 무관한 선수)를 "직접 연관은 없지만"이라는 식으로
+끼워넣지 마세요 — {league_name} 소속이거나 이 리그 기사에 실제로 등장하는
+선수가 아니면 아예 쓰지 마세요. 확실한 후보가 1명뿐이거나 없으면 그만큼만
+쓰세요, 2명을 채우는 것보다 정확한 게 우선입니다.
 응답 형식: 마크다운, 각 섹션은 ## 헤더 사용, 총 400~600자
 수집된 {league_name} 기사 수: {total_articles}건{"  |  ⚠️ 오류 " + str(len(errors)) + "건" if errors else ""}
 """
@@ -252,6 +261,7 @@ def insight_node(state: FootballNewsState) -> dict:
 
     try:
         prompt = _build_insight_prompt(state)
+        meta = _get_league_meta(state)
         now_iso = datetime.now(timezone.utc).isoformat()
 
         # ── Claude API 시도 ────────────────────────────────
@@ -287,7 +297,7 @@ def insight_node(state: FootballNewsState) -> dict:
                 response = client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[
-                        {"role": "system", "content": "당신은 EPL 축구 전문 애널리스트입니다."},
+                        {"role": "system", "content": f"당신은 {meta['role']}입니다."},
                         {"role": "user", "content": prompt},
                     ],
                     max_tokens=1024,
@@ -309,23 +319,23 @@ def insight_node(state: FootballNewsState) -> dict:
         # ── 목업 보고서 (API 키 없을 때) ──────────────────
         logger.info("[insight_node] API 키 없음 → 목업 인사이트 생성")
         rag_count = len(state.get("rag_context", []))
+        league_name = meta["name"]
         mock_insight = f"""## 🔍 오늘의 핵심 인사이트
-1. **EPL 순위 경쟁 지속**: 시즌 막판 치열한 순위 경쟁이 이어지고 있습니다.
-2. **한국 선수 활약**: 손흥민, 이강인 등 한국 선수들의 활약이 두드러집니다.
-3. **이적 시장 동향**: 여름 이적 시장을 앞두고 각 구단의 움직임이 활발합니다.
+1. **{league_name} 순위 경쟁 지속**: 시즌 막판 치열한 순위 경쟁이 이어지고 있습니다.
+2. **주요 이슈**: 이번 기간 수집된 뉴스를 기반으로 한 요약입니다.
+3. **이적 시장 동향**: 이적 시장을 앞두고 각 구단의 움직임이 활발합니다.
 
 ## ⭐ 주목 선수
-- **손흥민** (토트넘): 꾸준한 득점으로 팀의 유럽 진출권 경쟁을 이끌고 있음
-- **이강인** (PSG): 챔피언스리그에서 창의적인 플레이로 주목받는 중
+- 실제 선수명은 API 키 설정 후 AI 분석에서 확인할 수 있습니다.
 
-## 🏆 EPL 순위 전망
+## 🏆 {meta['section3']}
 시즌 종반 치열한 경쟁이 예상됩니다. RAG 검색 {rag_count}건의 관련 기사에서
 다양한 인사이트를 확인하였습니다.
 
 ## 📌 에디터 픽
 이번 주 가장 주목할 경기는 상위권 팀들의 직접 대결입니다.
 
-*⚠️ 목업 데이터: API 키를 .env에 설정하면 실제 AI 분석이 생성됩니다.*"""
+*⚠️ 목업 데이터: API 키를 .env에 설정하면 {league_name} 기준 실제 AI 분석이 생성됩니다.*"""
 
         return {
             "insight_report": mock_insight,

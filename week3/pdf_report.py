@@ -49,7 +49,6 @@ SECTIONS = [
     {"id": "headlines", "title": "헤드라인 뉴스", "min_tier": 0},
     {"id": "standings", "title": "순위표", "min_tier": 0},
     {"id": "top_scorers", "title": "득점왕", "min_tier": 0},
-    {"id": "predictions", "title": "경기 예측", "min_tier": 1},
     {"id": "transfer_rumors", "title": "이적 루머 상세", "min_tier": 1},
     {"id": "spotlight_players", "title": "주목할 선수", "min_tier": 1},
 ]
@@ -413,51 +412,9 @@ def _page3(pdf: _ReportPDF, result: dict, league: str, league_name: str,
     pdf.bg()
     pdf.pagehead(3)
 
-    if _enabled("predictions", user_tier):
-        pdf.section_h("Match Prediction")
-        mp = result.get("match_prediction") or {}
-        preds = mp.get("predictions") or []
-        if preds:
-            for p in preds[:3]:
-                card_y = pdf.get_y()
-                card_h = 14
-                pdf.card(MARGIN, card_y, CONTENT_W, card_h)
-                pdf.set_xy(MARGIN + 4, card_y + 2.5)
-                pdf.set_font("Malgun", "B", 8.5)
-                pdf.set_text_color(*INK)
-                vs_txt = f"{p.get('home_team','?')}   vs   {p.get('away_team','?')}"
-                pdf.cell(CONTENT_W - 8, 4.5, vs_txt)
-                pdf.set_xy(MARGIN + 4, card_y + 8)
-                pdf.set_font("Malgun", "", 6.6)
-                conf = (p.get("confidence") or "").strip()
-                conf_color = POS if "높" in conf else (NEG if "낮" in conf else ACCENT)
-                pdf.set_text_color(*conf_color)
-                conf_label = conf if conf else "신뢰도 정보 없음"
-                pdf.cell(28, 3.6, conf_label)
-                pdf.set_text_color(*MUTED)
-                reason = (p.get("reason") or "").strip()[:44]
-                pdf.cell(CONTENT_W - 36, 3.6, reason)
-                pdf.set_y(card_y + card_h + 3)
-            acc_note = ""
-            from prediction_tracker import get_accuracy_summary
-            acc = get_accuracy_summary()
-            if acc["total"] > 0:
-                acc_note = f" 지난 {acc['total']}건 예측 중 적중률은 {acc['accuracy_pct']}%입니다."
-            pdf.body_text(
-                "예측은 뉴스 감정 지수와 순위·최근 경기 데이터를 종합한 참고 정보이며 실제 결과를 "
-                "보장하지 않습니다." + acc_note,
-                size=7.3, color=MUTED,
-            )
-        else:
-            err = mp.get("error")
-            model_used = mp.get("model_used", "")
-            if err:
-                note = f"예측을 생성하지 못했습니다: {err}"
-            elif model_used == "skip":
-                note = "예정된 경기가 없어 이번 기간에는 경기 예측을 제공하지 않습니다."
-            else:
-                note = "LLM API 키가 설정되지 않아 경기 예측을 생성하지 못했습니다."
-            pdf.body_text(note, size=7.5, color=MUTED2)
+    # Match Prediction 섹션은 뺐다 — 예측 파이프라인 노드 자체를 제거했다
+    # (week2/graph.py 참고, 2026-07-22). PDF에 남겨두면 항상 빈 섹션만
+    # 나오게 된다.
 
     top_scorers = result.get("top_scorers") or []
     if top_scorers:
@@ -500,8 +457,8 @@ def _page3(pdf: _ReportPDF, result: dict, league: str, league_name: str,
 
     if _enabled("spotlight_players", user_tier):
         pdf.section_h("Spotlight Players")
-        from tabs.players import LEAGUE_SPOTLIGHT_PLAYERS, compute_player_stats
-        candidates = LEAGUE_SPOTLIGHT_PLAYERS.get(league, LEAGUE_SPOTLIGHT_PLAYERS["PL"])
+        from tabs.players import spotlight_candidates, compute_player_stats
+        candidates = spotlight_candidates(result.get("top_scorers", []))
         stats_list = []
         for name in candidates:
             st_ = compute_player_stats(name, articles, sentiments_by_id)

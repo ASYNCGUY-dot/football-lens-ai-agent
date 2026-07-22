@@ -276,9 +276,13 @@ def render_hot_issues(result: dict, league: str = None):
 
 
 
-def render_league_overview(result: dict):
+def render_league_overview(result: dict, league: str = None):
     """
     리그 오버뷰 섹션 — 수집된 순위표 데이터로 상위 5팀을 리그별 카드로 표시합니다.
+
+    league(API 코드)를 넘기지 않으면 예전처럼 "프리미어리그"로 고정
+    표시되는 버그가 있었다 — 실제 standings는 선택된 리그(예: 브라질
+    세리에A) 데이터인데 카드 제목만 항상 EPL로 나와서 혼란을 줬다.
     """
     standings = result.get("raw_standings", [])
     all_leagues = result.get("all_leagues_standings", {})
@@ -288,9 +292,15 @@ def render_league_overview(result: dict):
 
     espn_section("🌍", "LEAGUE OVERVIEW")
 
-    # EPL 단독 수집인 경우
+    # 단일 리그 수집인 경우 — league 코드로 실제 이름/국기를 찾는다.
     if standings and not all_leagues:
-        all_leagues = {"EPL": {"meta": {"name": "프리미어리그", "flag": "🏴󠁧󠁢󠁥󠁮󠁧󠁿"}, "standings": standings[:5]}}
+        from constants import _CODE_TO_LEAGUE_NAME, _LEAGUE_DISPLAY
+        display = _LEAGUE_DISPLAY.get(_CODE_TO_LEAGUE_NAME.get(league, ""), "")
+        flag, _, name = display.partition(" ")
+        if not name:
+            name = _CODE_TO_LEAGUE_NAME.get(league, league or "리그")
+            flag = "⚽"
+        all_leagues = {(league or "LG"): {"meta": {"name": name, "flag": flag}, "standings": standings[:5]}}
 
     if not all_leagues:
         return

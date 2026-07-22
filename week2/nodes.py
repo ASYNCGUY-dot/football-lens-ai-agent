@@ -34,6 +34,72 @@ from state import FootballNewsState
 
 logger = logging.getLogger(__name__)
 
+# merge_node/insight_node에서 리포트 섹션 제목에 쓰는 짧은 리그 표기.
+# 예전엔 "EPL 경기 분석"이 리그와 무관하게 하드코딩돼 있어서, K리그·
+# 브라질세리에A 등을 선택해도 리포트 본문에 계속 "EPL"이 찍혔다.
+_LEAGUE_SHORT_NAME: dict = {
+    "WC": "월드컵", "PL": "EPL", "KL1": "K리그", "PD": "라리가",
+    "BL1": "분데스리가", "SA": "세리에A", "FL1": "리그앙",
+    "CL": "챔피언스리그", "BSA": "브라질 세리에A", "CLI": "코파 리베르타도레스",
+}
+
+
+def _filter_by_league(
+    korean_articles: list[dict], english_articles: list[dict], league_code: str,
+) -> tuple[list[dict], list[dict]]:
+    """
+    선택 리그/대회와 무관한 기사를 제외한다.
+
+    RSS(6개 소스, 리그 인식 없음)와 네이버 수집 결과에는 선택 리그와 무관한
+    기사가 섞여 있다 — 화면 표시 단계에서만 걸러내면 LLM 요약·감정분석·
+    RAG 인덱싱은 이미 오염된 뒤라 소용없어서, 분류 직후 이 시점에서 한 번에
+    걸러낸다. 키워드는 week1/naver_collector.py의 LEAGUE_KEYWORD_MAP을
+    그대로 재사용한다 — 수집할 때 쓴 키워드와 걸러낼 때 쓰는 키워드가
+    다르면(예전 버그가 이랬다) 정작 수집된 관련 기사까지 걸러지는 역효과가
+    나므로 반드시 같은 소스를 써야 한다.
+
+    필터 결과가 0건이면 그냥 0건으로 둔다 — 예전엔 "0건이면 필터 없이
+    원본을 반환"하는 안전장치가 있었는데, 실제로는 이게 필터를 통째로
+    무력화하는 구멍이었다. 예를 들어 브라질세리에A 헤드라인은 실제로
+    "브라질세리에A"라는 표현을 잘 안 쓰고 팀명만 쓰는 경우가 많아서
+    제목 매칭이 0건이 되기 쉬운데, 그 순간 안전장치가 발동해 완전히
+    무관한 기사(브라질 국가대표 월드컵 뉴스 등)까지 전부 통과됐다.
+    다운스트림(summarize_*_node 등)은 이미 빈 리스트를 "관련 기사 없음"
+    으로 안전하게 처리하도록 만들어뒀으니, 0건이면 정직하게 0건으로
+    두는 게 낫다.
+    """
+    try:
+        from collectors.naver_collector import LEAGUE_KEYWORD_MAP
+    except ImportError:
+        return korean_articles, english_articles
+
+    keywords = LEAGUE_KEYWORD_MAP.get(league_code)
+    if not keywords:
+        return korean_articles, english_articles
+    # 공백 유무 표기 차이("전북현대" 키워드 vs 기사의 "전북 현대")로 매칭이
+    # 새는 걸 막기 위해 공백을 제거한 버전도 함께 비교한다.
+    keywords_norm = [kw.lower().replace(" ", "") for kw in keywords]
+
+    def _matches(a: dict) -> bool:
+        # 제목만 본다 — 요약(summary)까지 포함하면, 실제로는 다른 리그
+        # 이야기인데 본문 어딘가에 K리그 club명이 스치듯 언급된 기사까지
+        # "K리그 기사"로 잘못 걸러졌다. 예: "황인범, 포르투 입단" 이적
+        # 기사가 프로필 설명에 "K리그 FC서울에서 잠시 뛴 뒤..."라는 문장을
+        # 포함한다는 이유로 K리그 이적 소식에 뜬 사례. 제목은 기사가 실제로
+        # 무엇에 관한 것인지를 훨씬 정확히 반영한다. 수집 키워드(a["keyword"])
+        # 도 마찬가지 이유로 애초에 안 본다.
+        text = (a.get("title") or "").lower().replace(" ", "")
+        return any(kw in text for kw in keywords_norm)
+
+    ko_filtered = [a for a in korean_articles if _matches(a)]
+    en_filtered = [a for a in english_articles if _matches(a)]
+
+    logger.info(
+        f"[classify_node] 리그 필터({league_code}) | "
+        f"국내 {len(korean_articles)}→{len(ko_filtered)}건, 영어 {len(english_articles)}→{len(en_filtered)}건"
+    )
+    return ko_filtered, en_filtered
+
 
 # =============================================
 # 노드 1: 수집 노드 (collect_node)
@@ -106,13 +172,14 @@ def collect_node(state: FootballNewsState) -> dict:
     try:
         from collectors.naver_collector import NaverNewsCollector
         naver_collector = NaverNewsCollector(display=20)
-        if is_worldcup:
-            # 월드컵 전용 키워드 집중 수집
-            naver_articles = naver_collector.collect_league_keywords("WC")
-            logger.info(f"[collect_node] 네이버 월드컵 수집: {len(naver_articles)}건")
-        else:
-            naver_articles = naver_collector.collect_keywords()
-            logger.info(f"[collect_node] 네이버 수집: {len(naver_articles)}건")
+        # 선택된 리그/대회 전용 키워드로 집중 수집한다. 예전엔 월드컵만 이
+        # 방식을 쓰고 나머지 리그는 전부 EPL/K리그/월드컵 위주의 고정
+        # DEFAULT_KEYWORDS로 검색해서, 예를 들어 브라질세리에A를 선택해도
+        # 뉴스는 항상 EPL/월드컵 기사만 나오는 문제가 있었다.
+        # collect_league_keywords()는 LEAGUE_KEYWORD_MAP에 없는 리그 코드는
+        # 자동으로 DEFAULT_KEYWORDS로 폴백하므로 안전하다.
+        naver_articles = naver_collector.collect_league_keywords(league_code)
+        logger.info(f"[collect_node] 네이버 수집({league_code}): {len(naver_articles)}건")
         raw_articles.extend(naver_articles)
     except ValueError:
         logger.warning("[collect_node] 네이버 API 키 없음, 건너뜀")
@@ -287,13 +354,22 @@ def classify_node(state: FootballNewsState) -> dict:
     try:
         articles = state.get("raw_articles", [])
         matches = state.get("raw_matches", [])
+        league_code = state.get("config", {}).get("league", "PL")
 
         korean_articles = [a for a in articles if a.get("language") == "ko"]
         english_articles = [a for a in articles if a.get("language") == "en"]
 
+        # 선택 리그와 무관한 기사를 여기서 걸러낸다. 예전엔 RSS(6개 소스,
+        # 리그 인식 없음)와 네이버 수집 결과가 그대로 요약/감정분석/RAG
+        # 인덱싱까지 흘러들어가서, 예를 들어 K리그를 선택해도 일간 보고서
+        # "주요 토픽"에 월드컵·EPL 기사가 섞여 나오는 문제가 있었다. 화면
+        # 표시 단계에서만 걸러서는 요약 자체가 이미 오염된 뒤라 해결이 안 됐다.
+        korean_articles, english_articles = _filter_by_league(
+            korean_articles, english_articles, league_code
+        )
+
         has_korean = len(korean_articles) > 0
         has_english = len(english_articles) > 0
-        league_code = state.get("config", {}).get("league", "PL")
         # WC: 무료 API 제한으로 경기 데이터가 없어도 뉴스 기반 분석 실행
         if league_code == "WC" and (has_korean or has_english):
             has_match_data = True
@@ -345,7 +421,7 @@ def merge_node(state: FootballNewsState) -> dict:
         ├─────────────────────────────────────┤
         │ 1. 국내 축구 뉴스 요약 (Claude)       │
         │ 2. 해외 축구 뉴스 요약 (GPT-4o-mini) │
-        │ 3. EPL 경기 분석 (Gemini)            │
+        │ 3. 경기 분석 (Gemini, 선택 리그 기준)  │
         │ 4. 수집 통계                          │
         └─────────────────────────────────────┘
 
@@ -361,6 +437,8 @@ def merge_node(state: FootballNewsState) -> dict:
         match_analysis = state.get("match_analysis", {})
         stats = state.get("preprocessing_stats", {})
         run_id = state.get("run_id", "unknown")
+        league_code = state.get("config", {}).get("league", "PL")
+        league_label = _LEAGUE_SHORT_NAME.get(league_code, league_code)
         now_str = datetime.now(timezone.utc).strftime("%Y년 %m월 %d일 %H:%M UTC")
 
         # ── 섹션별 텍스트 조립 ─────────────────────────────────
@@ -405,9 +483,9 @@ def merge_node(state: FootballNewsState) -> dict:
 
         sections.append("")
 
-        # 3. EPL 경기 분석
+        # 3. 경기 분석
         sections.append("---")
-        sections.append("## 🏆 EPL 경기 분석")
+        sections.append(f"## 🏆 {league_label} 경기 분석")
         if match_analysis.get("error"):
             sections.append(f"> ⚠️ 분석 생성 실패: {match_analysis['error']}")
         elif match_analysis.get("analysis_text"):
@@ -421,7 +499,7 @@ def merge_node(state: FootballNewsState) -> dict:
             if match_analysis.get("standings_summary"):
                 sections.append(f"\n**순위표 요약**: {match_analysis['standings_summary']}")
         else:
-            sections.append("> EPL 경기 데이터 없음")
+            sections.append(f"> {league_label} 경기 데이터 없음")
 
         sections.append("")
 

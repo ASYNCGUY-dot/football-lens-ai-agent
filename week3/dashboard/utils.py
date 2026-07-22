@@ -11,46 +11,57 @@ from datetime import datetime
 
 import streamlit as st
 
-from constants import _LEAGUE_KEYWORDS
+from constants import _LEAGUE_KEYWORDS, _CODE_TO_LEAGUE_NAME
 
 logger = logging.getLogger(__name__)
 
 
-def _filter_articles_by_league(articles: list, league: str) -> list:
+def _filter_articles_by_league(articles: list, league: str, exclude: bool = True) -> list:
     """
-    선택 리그/대회 관련 기사를 상위로 올립니다.
-    입력 articles의 원래 순서(최신순 등)를 각 그룹 내에서 유지합니다.
+    선택 리그/대회 관련 기사를 골라냅니다.
 
     Parameters
     ----------
     articles : list
         원본 기사 리스트 (이미 정렬된 상태여도 무방)
     league : str
-        사이드바에서 선택된 리그명 (예: "EPL (프리미어리그)")
+        사이드바 표시명("EPL (프리미어리그)") 또는 API 코드("PL") 둘 다 받는다.
+        _LEAGUE_KEYWORDS는 표시명 기준 딕셔너리라, 호출부가 API 코드를
+        그대로 넘기면(예: 예전 daily.py) 조용히 빈 리스트가 나와 필터가
+        아무 효과 없이 통과되는 버그가 있었다 — 여기서 한 번에 정규화한다.
+    exclude : bool
+        True(기본값)면 무관 기사를 아예 제외한다. 예전엔 관련 기사만
+        위로 올리고 무관 기사도 그대로 뒤에 붙여서(reorder-only), K리그를
+        선택해도 EPL/월드컵 기사가 화면에 계속 섞여 나오는 문제가 있었다
+        — "적어도 정확한 것만" 보여달라는 피드백에 따라 기본을 제외로
+        바꿨다. False를 넘기면 예전처럼 재정렬만 한다.
 
     Returns
     -------
     list
-        [리그 관련 기사(입력 순서 유지)] + [기타 기사(입력 순서 유지)]
+        exclude=True: 리그 관련 기사만(입력 순서 유지)
+        exclude=False: [관련 기사] + [기타 기사] (둘 다 입력 순서 유지)
     """
-    keywords = _LEAGUE_KEYWORDS.get(league, [])
+    keywords = _LEAGUE_KEYWORDS.get(league) or _LEAGUE_KEYWORDS.get(_CODE_TO_LEAGUE_NAME.get(league, ""), [])
     if not keywords or not articles:
         return articles
+    # 공백 유무 표기 차이("전북현대" 키워드 vs 기사의 "전북 현대")로 매칭이
+    # 새는 걸 막기 위해 공백을 제거한 버전으로 비교한다.
+    keywords_norm = [kw.lower().replace(" ", "") for kw in keywords]
 
     relevant, others = [], []
     for a in articles:
-        text = " ".join([
-            (a.get("title")       or ""),
-            (a.get("summary")     or ""),
-            (a.get("source_name") or ""),
-            (a.get("category")    or ""),
-            (a.get("keyword")     or ""),
-        ]).lower()
-        if any(kw in text for kw in keywords):
+        # 제목만 본다 — 요약까지 보면 다른 리그 기사인데 본문 어딘가에
+        # K리그 club명이 스치듯 언급됐다는 이유만으로 관련 기사로 잘못
+        # 걸러지는 문제가 있었다(예: 유럽 이적 기사의 선수 프로필 설명에
+        # "K리그 FC서울에서 잠시 뛴 뒤..."). 제목이 실제 주제를 더 정확히
+        # 반영한다. keyword(수집 검색어)도 같은 이유로 안 본다.
+        text = (a.get("title") or "").lower().replace(" ", "")
+        if any(kw in text for kw in keywords_norm):
             relevant.append(a)
         else:
             others.append(a)
-    return relevant + others
+    return relevant if exclude else relevant + others
 
 
 # =============================================

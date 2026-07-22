@@ -5,7 +5,7 @@ import os as _os
 import streamlit as st
 
 from constants import _CODE_TO_LEAGUE_NAME
-from components import _html, espn_section, render_news_card
+from components import _html, espn_section
 from utils import _filter_articles_by_league
 from season_info import render_off_season_notice
 
@@ -14,6 +14,11 @@ def _render_related_news(result: dict, league: str) -> None:
     """
     영상 대신 보여줄 대안 콘텐츠 — 이번 실행에서 수집된 관련 리그 뉴스.
     실시간 API를 새로 부르지 않고 이미 있는 result를 재사용한다.
+
+    예전엔 썸네일 이미지가 붙은 카드 그리드(render_news_card)로 보여줬는데,
+    내용은 뉴스 기사인데도 영상 그리드처럼 보여 혼란스럽다는 피드백을
+    받았다 — 영상이 아니라는 게 한눈에 보이도록 썸네일 없는 단순 텍스트
+    링크 목록으로 바꿨다.
     """
     league_name = _CODE_TO_LEAGUE_NAME.get(league)
     all_articles = result.get("korean_articles", []) + result.get("english_articles", [])
@@ -23,11 +28,18 @@ def _render_related_news(result: dict, league: str) -> None:
         st.info("관련 뉴스도 아직 없습니다. 먼저 ⚡ 분석 실행으로 기사를 수집해주세요.")
         return
 
-    espn_section("📰", "대신 최근 관련 소식을 확인하세요", len(related[:6]))
-    col_l, col_r = st.columns(2)
-    for i, a in enumerate(related[:6]):
-        with col_l if i % 2 == 0 else col_r:
-            render_news_card(a, show_image=True)
+    espn_section("📰", "대신 최근 관련 소식을 확인하세요", len(related[:8]))
+    for a in related[:8]:
+        title = (a.get("title") or "")[:80]
+        url = a.get("url", "#")
+        src = a.get("source_name", "")
+        pub = str(a.get("published_at", ""))[:10]
+        _html(f"""
+<div style="padding:8px 0;border-bottom:1px solid #EEE;">
+<a href="{url}" target="_blank" style="font-size:13px;font-weight:600;color:#1A1A1A;text-decoration:none;">{title}</a>
+<div style="font-size:11px;color:#888;margin-top:2px;">{src} · {pub}</div>
+</div>
+""")
 
 
 def render_youtube_tab(result: dict, league: str = None):

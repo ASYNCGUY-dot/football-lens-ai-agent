@@ -38,8 +38,13 @@ from state import FootballNewsState, create_initial_state
 from nodes import collect_node, preprocess_node, classify_node, merge_node
 from llm_nodes import (
     summarize_korean_node, summarize_english_node, analyze_match_node,
-    sentiment_analysis_node, match_prediction_node,
+    sentiment_analysis_node,
 )
+# match_prediction_node는 그래프에서 뺐다 — 시스템 프롬프트가 "당신은 EPL
+# 데이터 분석가입니다"로, 팀별 감정 집계용 TEAMS_MAP도 EPL 6개 팀으로
+# 하드코딩돼 있어서 다른 리그를 선택해도 항상 EPL 관점으로 동작하거나
+# 감정 데이터가 항상 비어있었다. 모든 리그로 일반화하는 것보다 예측
+# 기능 자체를 빼는 게 낫다는 사용자 결정(2026-07-22).
 
 logger = logging.getLogger(__name__)
 
@@ -122,13 +127,14 @@ def build_graph() -> StateGraph:
         invoke() / stream()을 호출할 수 있는 컴파일된 그래프
 
     노드 등록 순서:
-        1. collect         : 뉴스 + EPL 데이터 수집
+        1. collect         : 뉴스 + 선택 리그 경기 데이터 수집
         2. preprocess      : 전처리 (중복 제거, 광고 필터)
-        3. classify        : 언어 분류 + 라우팅 플래그
+        3. classify        : 언어 분류 + 선택 리그 필터링 + 라우팅 플래그
         4. summarize_korean: 국내 뉴스 요약 (Claude)
         5. summarize_english: 해외 뉴스 요약 (GPT-4o-mini)
-        6. analyze_match   : EPL 경기 분석 (Gemini)
-        7. merge           : 최종 리포트 통합
+        6. analyze_match   : 경기 분석 (Gemini)
+        7. sentiment_analysis: 기사 감정 분석
+        8. merge           : 최종 리포트 통합
 
     엣지 구조:
         START → collect → preprocess → classify
@@ -150,7 +156,6 @@ def build_graph() -> StateGraph:
         graph.add_node("summarize_english",  summarize_english_node)
         graph.add_node("analyze_match",      analyze_match_node)
         graph.add_node("sentiment_analysis", sentiment_analysis_node)
-        graph.add_node("run_prediction",     match_prediction_node)
         graph.add_node("merge",              merge_node)
 
         # ── 일반 엣지 (순차 실행) ──────────────────────────────
@@ -175,9 +180,7 @@ def build_graph() -> StateGraph:
         graph.add_edge("summarize_korean",   "merge")
         graph.add_edge("summarize_english",  "merge")
         graph.add_edge("analyze_match",      "merge")
-        # 감정 분석 완료 후 → 경기 예측 → merge
-        graph.add_edge("sentiment_analysis", "run_prediction")
-        graph.add_edge("run_prediction",     "merge")
+        graph.add_edge("sentiment_analysis", "merge")
 
         # ── 종료 엣지 ─────────────────────────────────────────
         graph.add_edge("merge", END)

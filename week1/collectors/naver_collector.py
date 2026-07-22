@@ -93,9 +93,14 @@ DEFAULT_KEYWORDS = [
 ]
 
 # ── 리그별 집중 키워드 ──────────────────────────────────────
+# 이 목록들은 두 가지로 쓰인다: (1) 네이버 검색 API 쿼리, (2) week2/nodes.py
+# classify_node의 리그 필터 키워드(korean_articles/english_articles 둘 다
+# 이 목록으로 매칭한다). 한글 키워드만 있으면 RSS 등에서 수집된 영어 기사가
+# 전부 매칭 실패로 걸러져 사라지는 문제가 있어서, 영어 표기도 함께 넣는다.
 WC_KEYWORDS = [
     # 대회 전체
     "2026 월드컵", "FIFA 월드컵", "북중미 월드컵", "월드컵 2026",
+    "world cup", "fifa world cup", "2026 world cup",
     # 한국 대표팀
     "월드컵 한국", "태극전사", "국가대표 월드컵",
     "월드컵 손흥민", "월드컵 이강인", "월드컵 황희찬",
@@ -114,42 +119,76 @@ WC_KEYWORDS = [
 ]
 
 EPL_KEYWORDS = [
-    "EPL", "프리미어리그", "이적시장",
+    "EPL", "프리미어리그", "이적시장", "premier league",
     "맨체스터시티", "리버풀", "아스날", "첼시",
     "토트넘", "맨체스터유나이티드",
-    "손흥민", "황희찬",
-    "홀란드", "살라", "벨링엄",
+    "manchester city", "liverpool", "arsenal", "chelsea",
+    "tottenham", "manchester united",
+    "손흥민", "황희찬", "son heung-min",
+    "홀란드", "살라", "벨링엄", "haaland", "salah", "bellingham",
 ]
 
 KLEAGUE_KEYWORDS = [
-    "K리그", "K리그1", "한국 프로축구",
+    "K리그", "K리그1", "한국 프로축구", "k league", "k-league",
     "전북현대", "울산HD", "FC서울", "수원삼성",
     "포항스틸러스", "대구FC", "광주FC",
+    "jeonbuk", "ulsan hd", "fc seoul",
     "K리그 순위", "K리그 경기결과",
 ]
 
 LALIGA_KEYWORDS = [
-    "라리가", "스페인 축구",
+    "라리가", "스페인 축구", "la liga", "laliga",
     "레알마드리드", "바르셀로나", "아틀레티코마드리드",
-    "야말", "비니시우스", "이강인",
+    "real madrid", "barcelona", "atletico madrid",
+    "야말", "비니시우스", "이강인", "yamal", "vinicius",
 ]
 
 BUNDESLIGA_KEYWORDS = [
-    "분데스리가", "독일 축구",
+    "분데스리가", "독일 축구", "bundesliga",
     "바이에른뮌헨", "도르트문트", "레버쿠젠",
-    "케인", "무시알라", "어데예미",
+    "bayern munich", "borussia dortmund", "bayer leverkusen",
+    "케인", "무시알라", "어데예미", "kane", "musiala",
 ]
 
 SERIEA_KEYWORDS = [
-    "세리에A", "이탈리아 축구",
+    "세리에A", "이탈리아 축구", "serie a",
     "인테르밀란", "유벤투스", "AC밀란", "나폴리",
-    "루카쿠", "마르티네스",
+    "inter milan", "juventus", "ac milan", "napoli",
+    "루카쿠", "마르티네스", "lukaku",
 ]
 
 LIGUE1_KEYWORDS = [
-    "리그앙", "프랑스 축구",
+    "리그앙", "프랑스 축구", "ligue 1",
     "PSG", "파리생제르맹", "모나코", "마르세유",
-    "음바페",
+    "paris saint-germain", "monaco", "marseille",
+    "음바페", "mbappe",
+]
+
+CHAMPIONS_LEAGUE_KEYWORDS = [
+    "챔피언스리그", "UCL", "UEFA챔피언스리그", "champions league",
+    "맨체스터시티", "레알마드리드", "바이에른뮌헨", "PSG",
+    "리버풀", "아스날", "인테르밀란", "바르셀로나",
+    "manchester city", "real madrid", "bayern munich",
+]
+
+BRASILEIRAO_KEYWORDS = [
+    "브라질세리에A", "브라질리안세리에A", "브라지레이랑", "브라질 축구",
+    "brasileirao", "brazilian serie a",
+    "팔메이라스", "플라멩구", "플루미넨시", "브라간치누",
+    "파라나엔세", "코린치안스", "상파울루FC", "그레미우",
+    "palmeiras", "flamengo", "fluminense", "bragantino",
+]
+
+LIBERTADORES_KEYWORDS = [
+    "코파리베르타도레스", "리베르타도레스", "남미 클럽대항전", "copa libertadores",
+    "보카주니어스", "리버플레이트", "플라멩구", "팔메이라스",
+    "그레미우", "인테르나시오나우", "코린치안스",
+    "boca juniors", "river plate", "gremio", "internacional", "corinthians",
+    # "산투스"/"santos"는 일부러 뺐다 — Santos FC를 노린 키워드였는데
+    # 실제로는 흔한 성씨(예: Andrey Santos 선수)와 겹쳐서 무관한 이적
+    # 기사가 걸리는 오탐이 발생했다(2026-07-22, 맨유 이적 기사 오탐 확인).
+    # 클럽 자체를 지칭할 땐 "산투스FC"처럼 항상 FC가 붙어 나오므로, 필요하면
+    # "산투스fc"/"santos fc"처럼 더 구체적인 형태로만 다시 추가할 것.
 ]
 
 # league_code → 키워드 매핑
@@ -161,6 +200,9 @@ LEAGUE_KEYWORD_MAP: dict = {
     "BL1": BUNDESLIGA_KEYWORDS,
     "SA":  SERIEA_KEYWORDS,
     "FL1": LIGUE1_KEYWORDS,
+    "CL":  CHAMPIONS_LEAGUE_KEYWORDS,
+    "BSA": BRASILEIRAO_KEYWORDS,
+    "CLI": LIBERTADORES_KEYWORDS,
 }
 
 # 네이버 뉴스 검색 API 엔드포인트

@@ -73,7 +73,7 @@ def render_daily_report(result: dict, language: str, league: str = None):
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ── 리그 오버뷰 ─────────────────────────────────────────
-    render_league_overview(result)
+    render_league_overview(result, league=league)
 
     # ── AI 인사이트 ─────────────────────────────────────────
     insight = result.get("insight_report", "")

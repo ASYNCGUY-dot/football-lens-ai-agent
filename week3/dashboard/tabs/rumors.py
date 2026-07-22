@@ -3,10 +3,17 @@
 import streamlit as st
 
 from components import _html, espn_section, render_sentiment_badge
+from utils import _filter_articles_by_league
 
 
-def render_transfer_rumors_tab(result: dict):
-    """이적 루머 트래커 탭 — 리그 무관 최신 이적 소식을 모두 표시합니다."""
+def render_transfer_rumors_tab(result: dict, league: str = None):
+    """
+    이적 루머 트래커 탭 — 선택 리그 관련 이적 소식만 표시합니다.
+
+    예전엔 리그 무관하게 전체를 다 보여줬는데, K리그1을 선택해도 EPL/MLS
+    이적설이 계속 섞여 나와 혼란을 준다는 피드백에 따라 다른 탭들과
+    동일하게 리그 필터를 적용했다.
+    """
 
     # ── 이적 관련 키워드 (한/영) ──────────────────────────────
     TRANSFER_KW_KO = [
@@ -42,6 +49,10 @@ def render_transfer_rumors_tab(result: dict):
 
     # 최신순 정렬
     rumors.sort(key=lambda x: str(x.get("published_at", "")), reverse=True)
+
+    # 선택 리그 관련 이적 소식만 남긴다.
+    if league:
+        rumors = _filter_articles_by_league(rumors, league)
 
     if not rumors:
         _html("""

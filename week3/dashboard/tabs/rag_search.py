@@ -43,14 +43,20 @@ def render_rag_search_tab(result: dict):
     # 보여주지 않고 경고한다. 데모 데이터셋이 작을 때(수십 건 미만) 특히
     # 무관한 쿼리에도 "가장 덜 무관한" 결과가 나오기 쉬워서 필요하다.
     SIMILARITY_WARN_THRESHOLD = 45.0
-    best_similarity = max(
-        (1 - r.get("distance", 1)) * 100 for r in results
-    ) if results else 0
+    scored = [(r, (1 - r.get("distance", 1)) * 100) for r in results]
+    best_similarity = max((s for _, s in scored), default=0)
+
     if best_similarity < SIMILARITY_WARN_THRESHOLD:
         st.warning(
             f"⚠️ 검색어와 확실히 관련된 기사를 찾지 못했습니다 (최고 유사도 "
             f"{best_similarity:.1f}%). 아래는 그나마 가까운 결과이니 참고만 하세요."
         )
+        display_results = [r for r, _ in scored]
+    else:
+        # 최상위 결과는 확실히 관련 있어도, 그보다 훨씬 낮은 유사도 결과가
+        # 같은 목록에 섞여 나오면("K리그" 검색에 유사도 40%대 월드컵/홀란드
+        # 기사가 같이 뜨는 식) 관련 없는 정보로 보인다 — 임계값 미만은 뺀다.
+        display_results = [r for r, s in scored if s >= SIMILARITY_WARN_THRESHOLD]
 
-    for r in results:
+    for r in display_results:
         render_rag_card(r)

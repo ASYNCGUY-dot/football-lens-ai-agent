@@ -167,6 +167,21 @@ def summarize_korean_node(state: FootballNewsState) -> dict:
     articles = state.get("korean_articles", [])
     logger.info(f"[summarize_korean_node] 시작 | 기사 {len(articles)}건")
 
+    # 기사가 0건이면 LLM을 아예 부르지 않는다 — 빈 입력에 "요약해달라"고만
+    # 시키면 모델이 실제로 없는 내용을 지어낼 위험이 있다(summarize_english_node
+    # 참고). "기사 없음"은 여기서 확정적으로 처리한다.
+    if not articles:
+        return {
+            "korean_summary": SummaryResult(
+                model_used="skip",
+                articles_count=0,
+                summary_text="이번 기간 수집된 국내 관련 기사가 없습니다.",
+                key_topics=[],
+                generated_at=_now_iso(),
+                error=None,
+            )
+        }
+
     # ── 프롬프트 구성 (공통) ───────────────────────────────
     articles_text = _format_articles_for_prompt(articles, max_count=15)
 
@@ -337,7 +352,8 @@ def summarize_english_node(state: FootballNewsState) -> dict:
         english_summary : SummaryResult 딕셔너리
     """
     articles = state.get("english_articles", [])
-    logger.info(f"[summarize_english_node] 시작 | 기사 {len(articles)}건")
+    league_code = state.get("config", {}).get("league", "PL")
+    logger.info(f"[summarize_english_node] 시작 | 리그:{league_code} 기사 {len(articles)}건")
 
     api_key = _clean_api_key(os.getenv("OPENAI_API_KEY"))
     if not api_key:
@@ -353,11 +369,41 @@ def summarize_english_node(state: FootballNewsState) -> dict:
             )
         }
 
+    # 기사가 0건이면 LLM을 아예 부르지 않는다. 빈 기사 목록 + "당신은
+    # OO 전문 에디터입니다" 페르소나를 같이 주면, LLM이 "요약해달라"는
+    # 지시를 지키려고 실제로는 없는 내용을 그럴듯하게 지어내는 경우가
+    # 있었다(예: 코파리베르타도레스 선택 시 수집된 영어 기사가 없는데도
+    # 실제 EPL 이적 뉴스처럼 보이는 내용을 만들어낸 사례). "기사 없음"은
+    # 여기서 확정적으로 처리하는 게 훨씬 안전하다.
+    if not articles:
+        return {
+            "english_summary": SummaryResult(
+                model_used="skip",
+                articles_count=0,
+                summary_text="No English news available for this league in the collected period.",
+                key_topics=[],
+                generated_at=_now_iso(),
+                error=None,
+            )
+        }
+
     articles_text = _format_articles_for_prompt(articles, max_count=15)
 
-    # System 프롬프트
-    system_prompt = """You are a professional football news editor specializing in the English Premier League and European football.
+    _LEAGUE_EN_NAME = {
+        "WC": "the 2026 FIFA World Cup", "PL": "the English Premier League",
+        "KL1": "the Korean K League 1", "PD": "La Liga", "BL1": "the Bundesliga",
+        "SA": "Serie A", "FL1": "Ligue 1", "CL": "the UEFA Champions League",
+        "BSA": "the Brazilian Serie A", "CLI": "the Copa Libertadores",
+    }
+    league_en = _LEAGUE_EN_NAME.get(league_code, "football")
+
+    # System 프롬프트 — 예전엔 리그와 무관하게 항상 "Premier League 전문
+    # 에디터" 페르소나로 고정돼 있어서, 다른 리그를 선택해도 계속 EPL
+    # 관점으로 답하려는 경향이 있었다.
+    system_prompt = f"""You are a professional football news editor specializing in {league_en}.
 Analyze the provided English football news articles and create a concise summary for Korean football fans.
+Only summarize {league_en}-related content from the provided articles — do not bring in Premier League
+or other competitions unless an article explicitly covers them.
 
 Output rules:
 1. Write the main summary in ENGLISH (3-5 paragraphs).

@@ -60,6 +60,20 @@ AVAILABLE_LEAGUES = {
     "코파리베르타도레스": {"code": "CLI", "name": "코파 리베르타도레스", "flag": "🏆"},
     # 주의: "유로파리그"(EL)는 이 API의 무료 플랜에서 지원하지 않아 제거했다
     # (2026-07-21 /v4/competitions 목록 직접 확인 — 404).
+    #
+    # K리그(KL1)도 이 목록에 없다 — football-data.org가 애초에 K리그를
+    # 지원하지 않는다(/v4/competitions에 없음). 대안으로 API-Football을
+    # 검토해 실제 키까지 발급받아 테스트했으나(2026-07-22), 무료 플랜이
+    # 2022~2024 시즌 데이터만 제공하고 현재 시즌은 전부 막혀 있어
+    # ("Free plans do not have access to this season, try from 2022 to
+    # 2024" — standings/topscorers/fixtures 세 엔드포인트 모두 동일)
+    # "이번 시즌 순위/득점왕"에는 쓸 수 없다고 확인됨. 유료 Pro 플랜
+    # ($19/월, 7,500req/일)부터 현재 시즌이 열리는데, 리그 하나 때문에
+    # 매달 비용을 낼 정도는 아니라고 판단해 보류하기로 함(사용자 결정,
+    # 2026-07-22). K리그는 순위표/득점왕/경기예측 없이 뉴스 기반으로만
+    # 운영한다 — week3/dashboard/tabs/prediction.py, players.py의 KL1
+    # 분기 참고. API_FOOTBALL_KEY는 .env에 남아있지만 실제로 쓰는 코드는
+    # 없다(나중에 유료 전환하면 그때 collector를 새로 만들면 됨).
 }
 
 # 2026 FIFA 월드컵 설정

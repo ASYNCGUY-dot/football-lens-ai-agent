@@ -20,6 +20,7 @@ ChromaDB 벡터 DB에 축구 뉴스 기사를 임베딩하고 저장합니다.
 import os
 import sys
 import logging
+import threading
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -49,6 +50,15 @@ except ImportError:
 WEEK1_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "week1")
 if WEEK1_PATH not in sys.path:
     sys.path.insert(0, WEEK1_PATH)
+
+# ── 임베딩 모델 프로세스 전역 캐시 ────────────────────────────
+# rag_search_node가 파이프라인 실행마다 ArticleEmbedder()를 새로 만드는데,
+# 모델을 인스턴스 속성(self._model)에만 캐시하면 매 실행마다 all-MiniLM-L6-v2
+# (약 90MB)를 디스크에서 다시 로드하게 된다. 실측 결과 이게 실행당 약 44초를
+# 잡아먹는 가장 큰 단일 병목이었다. 모델은 순수 추론용(stateless)이라 여러
+# 인스턴스/실행에서 공유해도 안전 — 프로세스 전역 캐시로 최초 1회만 로드한다.
+_MODEL_CACHE: dict = {}
+_MODEL_CACHE_LOCK = threading.Lock()
 
 
 
@@ -123,16 +133,23 @@ class ArticleEmbedder:
         return self._collection
 
     def _get_model(self):
-        """sentence-transformers 임베딩 모델을 반환합니다."""
+        """sentence-transformers 임베딩 모델을 반환합니다 (프로세스 전역 캐시)."""
         if not ST_AVAILABLE:
             raise ImportError(
                 "sentence-transformers 패키지가 필요합니다: "
                 "pip install sentence-transformers"
             )
         if self._model is None:
-            logger.info(f"임베딩 모델 로딩: {self.model_name}")
-            self._model = SentenceTransformer(self.model_name)
-            logger.info("임베딩 모델 로딩 완료")
+            with _MODEL_CACHE_LOCK:
+                cached = _MODEL_CACHE.get(self.model_name)
+                if cached is None:
+                    logger.info(f"임베딩 모델 로딩: {self.model_name}")
+                    cached = SentenceTransformer(self.model_name)
+                    _MODEL_CACHE[self.model_name] = cached
+                    logger.info("임베딩 모델 로딩 완료")
+                else:
+                    logger.info(f"임베딩 모델 캐시 재사용: {self.model_name} (재로딩 생략)")
+            self._model = cached
         return self._model
 
     def _embed_texts(self, texts: list[str]) -> list[list[float]]:

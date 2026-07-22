@@ -72,18 +72,44 @@ PHOTO_STRIP = [
 
 
 # 리그명 -> 관련 키워드 매핑 (소문자로 비교)
+# 리그 라벨만 있으면 "전북현대"·"울산HD"처럼 팀명만 언급된 K리그 기사가
+# 걸러지지 않고 다른 리그로 새는 문제가 있어서, week1/naver_collector.py의
+# 수집 키워드(LEAGUE_KEYWORD_MAP)와 맞춰 팀/선수명까지 포함시켰다.
 _LEAGUE_KEYWORDS: dict = {
     "2026 FIFA 월드컵": ["월드컵", "world cup", "fifa 2026", "wc 2026", "2026 wc",
                         "월드컵 2026", "북중미 월드컵"],
-    "EPL (프리미어리그)": ["epl", "프리미어리그", "premier league", "잉글랜드"],
-    "K리그1":            ["k리그", "k-league", "kl1", "한국 프로축구", "k league"],
-    "라리가":            ["라리가", "laliga", "la liga", "스페인 리그"],
-    "분데스리가":         ["분데스리가", "bundesliga", "독일 리그"],
-    "세리에A":           ["세리에", "serie a", "이탈리아 리그"],
-    "리그앙":            ["리그앙", "ligue 1", "프랑스 리그"],
-    "챔피언스리그":       ["챔피언스리그", "champions league", "ucl"],
-    "브라질세리에A":      ["브라질", "브라지레이랑", "brasileirao", "brazilian serie a", "brazil"],
-    "코파리베르타도레스":  ["코파 리베르타도레스", "리베르타도레스", "copa libertadores", "libertadores"],
+    "EPL (프리미어리그)": ["epl", "프리미어리그", "premier league", "잉글랜드",
+                        "맨체스터시티", "리버풀", "아스날", "첼시", "토트넘",
+                        "맨체스터유나이티드", "손흥민", "황희찬", "홀란드", "살라", "벨링엄",
+                        "manchester city", "liverpool", "arsenal", "chelsea", "tottenham",
+                        "manchester united", "haaland", "salah", "bellingham"],
+    "K리그1":            ["k리그", "k-league", "kl1", "한국 프로축구", "k league",
+                        "전북현대", "울산hd", "울산현대", "fc서울", "수원삼성",
+                        "포항스틸러스", "대구fc", "광주fc",
+                        "jeonbuk", "ulsan hd", "fc seoul"],
+    "라리가":            ["라리가", "laliga", "la liga", "스페인 리그",
+                        "레알마드리드", "바르셀로나", "아틀레티코마드리드", "야말", "비니시우스",
+                        "real madrid", "barcelona", "atletico madrid", "yamal", "vinicius"],
+    "분데스리가":         ["분데스리가", "bundesliga", "독일 리그",
+                        "바이에른뮌헨", "도르트문트", "레버쿠젠", "케인", "무시알라",
+                        "bayern munich", "borussia dortmund", "bayer leverkusen", "kane", "musiala"],
+    "세리에A":           ["세리에", "serie a", "이탈리아 리그",
+                        "인테르밀란", "유벤투스", "ac밀란", "나폴리", "루카쿠",
+                        "inter milan", "juventus", "ac milan", "napoli", "lukaku"],
+    "리그앙":            ["리그앙", "ligue 1", "프랑스 리그",
+                        "psg", "파리생제르맹", "모나코", "마르세유", "음바페",
+                        "paris saint-germain", "monaco", "marseille", "mbappe"],
+    "챔피언스리그":       ["챔피언스리그", "champions league", "ucl",
+                        "맨체스터시티", "레알마드리드", "바이에른뮌헨",
+                        "manchester city", "real madrid", "bayern munich"],
+    "브라질세리에A":      ["브라질", "브라지레이랑", "brasileirao", "brazilian serie a", "brazil",
+                        "팔메이라스", "플라멩구", "플루미넨시", "브라간치누", "파라나엔세", "코린치안스",
+                        "palmeiras", "flamengo", "fluminense", "bragantino"],
+    # "산투스"/"santos"는 일부러 뺐다 — 흔한 선수 성씨와 겹쳐 오탐 발생
+    # (week1/naver_collector.py의 LIBERTADORES_KEYWORDS 주석 참고).
+    "코파리베르타도레스":  ["코파 리베르타도레스", "리베르타도레스", "copa libertadores", "libertadores",
+                        "보카주니어스", "리버플레이트", "그레미우", "인테르나시오나우", "코린치안스",
+                        "boca juniors", "river plate", "gremio", "internacional", "corinthians"],
 }
 
 # 리그명 → 표시용 이름 + 이모지

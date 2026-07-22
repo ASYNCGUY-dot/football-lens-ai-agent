@@ -119,6 +119,36 @@ def render_prediction_tab(result: dict, league: str = "PL"):
     elif upcoming:
         # 경기 일정은 있지만 LLM 예측 실패
         st.info("LLM API 키를 설정하면 AI 경기 예측이 생성됩니다. (.env의 ANTHROPIC_API_KEY / OPENAI_API_KEY / GOOGLE_API_KEY)")
+    elif league == "KL1":
+        # football-data.org가 K리그를 지원하지 않아 경기 일정/예측 API 자체가
+        # 없다 — 빈 화면 대신 이유를 명확히 알리고, 선택 리그로 필터링된
+        # 뉴스로 대체한다. 대안(API-Football)은 무료 플랜이 현재 시즌을
+        # 지원하지 않아 보류함 — 자세한 내용은
+        # week1/collectors/football_data_collector.py의 AVAILABLE_LEAGUES
+        # 주석 참고.
+        _html("""
+<div style="background:#FFF3E0;border:1px solid #FFCC80;border-radius:3px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#E65100;">
+ℹ️ football-data.org는 K리그 경기 일정/결과 API를 지원하지 않아 경기 예측을 제공할 수 없습니다. 아래는 대신 K리그 관련 뉴스입니다.
+</div>
+""")
+        from utils import _filter_articles_by_league
+        all_articles = result.get("korean_articles", []) + result.get("english_articles", [])
+        kl_articles = _filter_articles_by_league(all_articles, "KL1")
+        if kl_articles:
+            espn_section("📰", "K리그 관련 뉴스")
+            for a in kl_articles[:6]:
+                title = (a.get("title") or "")[:80]
+                url = a.get("url", "#")
+                src = a.get("source_name", "")
+                pub = str(a.get("published_at", ""))[:10]
+                _html(f"""
+<div style="background:#FFFFFF;border-radius:4px;padding:12px 16px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+<a href="{url}" target="_blank" style="font-size:14px;font-weight:600;color:#1A1A1A;text-decoration:none;">{title}</a>
+<div style="font-size:11px;color:#888;margin-top:3px;">{src} · {pub}</div>
+</div>
+""")
+        else:
+            st.info("이번 기간 K리그 관련 뉴스를 찾지 못했습니다.")
     else:
         # WC이지만 예정 경기 API 데이터 없음 → 뉴스 기반 안내
         if league == "WC":

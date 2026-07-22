@@ -6,17 +6,6 @@ import streamlit as st
 
 from components import _html, espn_section, render_sentiment_badge
 
-# 리그별 주목할 선수 목록 — pdf_report.py도 동일 목록을 재사용한다.
-LEAGUE_SPOTLIGHT_PLAYERS = {
-    "WC":  ["손흥민", "이강인", "김민재", "메시", "음바페", "홀란드", "비니시우스", "벨링엄", "야말", "로드리"],
-    "PL":  ["홀란드", "살라", "손흥민", "황희찬", "팔머", "아르테타", "벨링엄", "워트킨스", "이사크", "자카"],
-    "PD":  ["비니시우스", "야말", "음바페", "벨링엄", "레반도프스키", "페드리", "모드리치", "크로스"],
-    "BL1": ["케인", "무시알라", "그리말도", "비르츠", "그나브리", "킴미히", "사네"],
-    "SA":  ["마르티네스", "루카쿠", "디마리아", "바레야", "오시멘", "초크", "라우타로"],
-    "FL1": ["음바페", "뎀벨레", "음파페", "파리", "아카이오지", "테아테", "루베르트"],
-    "KL1": ["조규성", "오현규", "황인범", "황의조", "이동경", "제르소", "마테우스"],
-}
-
 
 def compute_player_stats(query: str, articles: list, sentiments_by_id: dict) -> dict:
     """
@@ -51,10 +40,30 @@ def compute_player_stats(query: str, articles: list, sentiments_by_id: dict) -> 
     }
 
 
-def render_spotlight_players_tab(result: dict, league: str = "PL"):
-    """⭐ 주목할 선수 탭 — 리그별 주요 선수 + 관련 뉴스 + 감정 통계."""
+def spotlight_candidates(top_scorers: list) -> list[str]:
+    """
+    top_scorers(football-data.org 실데이터)에서 중복 없는 선수명 목록을 뽑는다.
 
-    league_players = LEAGUE_SPOTLIGHT_PLAYERS.get(league, LEAGUE_SPOTLIGHT_PLAYERS["PL"])
+    예전엔 리그별 하드코딩 이름 목록(LEAGUE_SPOTLIGHT_PLAYERS)을 썼는데,
+    선수가 다른 리그로 이적해도 계속 후보로 남는 문제가 있었다("이름만
+    한국인이면 K리그 선수냐"는 피드백대로) — 실시간 API 데이터로 바꿨다.
+    top_scorers 자체가 없는 리그(K리그 등 football-data.org 미지원)는
+    빈 리스트를 반환하고, 호출부가 검색만 제공하도록 한다. 대안으로
+    검토한 API-Football은 무료 플랜이 현재 시즌 데이터를 막아놔서
+    (2022~2024만 허용) 채택하지 않음 — 자세한 내용은
+    week1/collectors/football_data_collector.py의 AVAILABLE_LEAGUES 주석 참고.
+    """
+    seen, names = set(), []
+    for s in top_scorers:
+        name = (s.get("player_name") or "").strip()
+        if name and name not in seen:
+            seen.add(name)
+            names.append(name)
+    return names[:10]
+
+
+def render_spotlight_players_tab(result: dict, league: str = "PL"):
+    """⭐ 주목할 선수 탭 — 득점 순위 기반 실선수 + 관련 뉴스 + 감정 통계."""
 
     # 리그 이름 매핑
     _LEAGUE_NAME = {
@@ -75,24 +84,31 @@ def render_spotlight_players_tab(result: dict, league: str = "PL"):
     standings = result.get("raw_standings", [])
     upcoming_matches = result.get("upcoming_matches", [])
     raw_matches = result.get("raw_matches", [])
+    league_players = spotlight_candidates(top_scorers)
 
     espn_section("⭐", f"Spotlight Players — {league_name}")
 
-    # 주목할 선수 chip 목록
-    _html(f'<div style="font-size:11px;color:#CC0000;font-family:Oswald,sans-serif;font-weight:700;text-transform:uppercase;margin-bottom:8px;">⚡ {league_name} 주목 선수</div>')
-    chip_cols = st.columns(min(len(league_players), 5))
-    for i, p in enumerate(league_players[:5]):
-        with chip_cols[i]:
-            if st.button(p, key=f"spotlight_chip_{i}", use_container_width=True):
-                st.session_state["spotlight_query"] = p
-
-    # 두 번째 줄 chip (나머지)
-    if len(league_players) > 5:
-        chip_cols2 = st.columns(min(len(league_players) - 5, 5))
-        for i, p in enumerate(league_players[5:10]):
-            with chip_cols2[i]:
-                if st.button(p, key=f"spotlight_chip2_{i}", use_container_width=True):
+    # 주목할 선수 chip 목록 — 득점 순위 실데이터가 있을 때만 표시한다.
+    if league_players:
+        _html(f'<div style="font-size:11px;color:#CC0000;font-family:Oswald,sans-serif;font-weight:700;text-transform:uppercase;margin-bottom:8px;">⚡ {league_name} 득점 순위 기준 주목 선수</div>')
+        chip_cols = st.columns(min(len(league_players), 5))
+        for i, p in enumerate(league_players[:5]):
+            with chip_cols[i]:
+                if st.button(p, key=f"spotlight_chip_{i}", use_container_width=True):
                     st.session_state["spotlight_query"] = p
+
+        # 두 번째 줄 chip (나머지)
+        if len(league_players) > 5:
+            chip_cols2 = st.columns(min(len(league_players) - 5, 5))
+            for i, p in enumerate(league_players[5:10]):
+                with chip_cols2[i]:
+                    if st.button(p, key=f"spotlight_chip2_{i}", use_container_width=True):
+                        st.session_state["spotlight_query"] = p
+    else:
+        st.info(
+            f"{league_name}은(는) football-data.org가 득점 순위를 제공하지 않아 "
+            f"추천 선수 칩을 보여줄 수 없습니다. 아래에서 선수·팀명으로 직접 검색하세요."
+        )
 
     # 검색창
     st.markdown("<br>", unsafe_allow_html=True)
@@ -100,7 +116,7 @@ def render_spotlight_players_tab(result: dict, league: str = "PL"):
     with col1:
         player_query = st.text_input(
             "선수/팀 검색",
-            placeholder=f"예: {league_players[0]}, 토트넘...",
+            placeholder=f"예: {league_players[0]}, 팀명..." if league_players else "예: 손흥민, 팀명...",
             label_visibility="collapsed",
             key="spotlight_search_input",
         )

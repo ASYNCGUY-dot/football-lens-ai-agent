@@ -65,10 +65,8 @@ from tabs.weekly import render_weekly_report
 from tabs.standings import render_standings_tab
 from tabs.trend import render_trend_tab
 from tabs.rumors import render_transfer_rumors_tab
-from tabs.kleague import render_kleague_tab
 from tabs.worldcup import render_worldcup_tab
 from tabs.players import render_spotlight_players_tab
-from tabs.prediction import render_prediction_tab
 from tabs.youtube import render_youtube_tab
 from tabs.rag_search import render_rag_search_tab
 from tabs.email import render_email_tab
@@ -211,19 +209,25 @@ def main():
             icon="⚠️",
         )
 
-    # 리그/대회별로 의미 없는 탭은 숨긴다 (예: K리그 선택 시 월드컵 탭,
-    # 월드컵/K리그 선택 시 순위표 탭 — football-data.org가 K리그를 지원하지
-    # 않고, 월드컵은 조별리그 순위를 월드컵 탭 안에서 별도로 보여준다).
+    # 리그/대회별로 의미 없는 탭은 숨긴다 (예: 월드컵/K리그 선택 시 순위표 탭
+    # — football-data.org가 K리그를 지원하지 않고, 월드컵은 조별리그 순위를
+    # 월드컵 탭 안에서 별도로 보여준다).
+    # K리그 전용 탭은 제거했다 — 일간/주간 보고서·이적 루머가 이제 선택된
+    # 리그로 실제로 필터링되므로(_filter_articles_by_league exclude 모드),
+    # "리그/대회"에서 K리그1을 고르면 그 탭들만으로 충분하고 별도 탭은 중복이었다.
+    # 경기 예측 탭도 제거했다 — match_prediction_node의 시스템 프롬프트와
+    # 팀 감정 집계(TEAMS_MAP)가 EPL 6개 팀으로 하드코딩돼 있어서 다른
+    # 리그에서는 항상 비어있거나 EPL 관점으로 나왔다. 모든 리그로 일반화
+    # 하는 것보다 기능 자체를 빼는 게 낫다는 사용자 결정(2026-07-22) —
+    # week2/graph.py에서 노드 자체도 뺐다.
     tab_defs = [
         ("daily", "⚽  일간 보고서", True),
         ("weekly", "📊  주간 보고서", True),
         ("standings", "🏆  순위표", _league not in ("KL1", "WC")),
         ("trend", "📈  트렌드", True),
         ("rumors", "🔄  이적 루머", True),
-        ("kleague", "🇰🇷  K리그", _league == "KL1"),
         ("worldcup", "🌍  월드컵", _league == "WC"),
         ("player", "⭐  주목할 선수", True),
-        ("predict", "🎯  경기 예측", True),
         ("youtube", "▶️  YouTube", True),
         ("rag_search", "🔍  RAG 검색", True),
         ("email", "📧  이메일 발송", True),
@@ -246,19 +250,13 @@ def main():
             render_trend_tab(result, _league)
     if "rumors" in tabs:
         with tabs["rumors"]:
-            render_transfer_rumors_tab(result)
-    if "kleague" in tabs:
-        with tabs["kleague"]:
-            render_kleague_tab(result)
+            render_transfer_rumors_tab(result, _league)
     if "worldcup" in tabs:
         with tabs["worldcup"]:
             render_worldcup_tab(result)
     if "player" in tabs:
         with tabs["player"]:
             render_spotlight_players_tab(result, _league)
-    if "predict" in tabs:
-        with tabs["predict"]:
-            render_prediction_tab(result, _league)
     if "youtube" in tabs:
         with tabs["youtube"]:
             render_youtube_tab(result, _league)

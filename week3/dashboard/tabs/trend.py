@@ -134,10 +134,14 @@ def render_trend_tab(result: dict, league: str = None):
             "몇 번 등장했는지 센 것입니다. 실시간 트렌드가 아니라 미리 정해둔 "
             "키워드 목록 기준이라, 목록에 없는 이슈는 잡히지 않습니다."
         )
-        TRACK_KEYWORDS = [
+        # 예전엔 리그와 무관하게 항상 같은 EPL/챔피언스리그 위주 목록을 써서,
+        # K리그를 선택해도 "손흥민·EPL·챔피언스리그" 그래프가 나오는
+        # 문제가 있었다 — 선택 리그의 팀/선수 키워드(_LEAGUE_KEYWORDS)를 쓴다.
+        from constants import _LEAGUE_KEYWORDS as _KW_MAP, _CODE_TO_LEAGUE_NAME as _C2N
+        league_display_name = _C2N.get(league, league)
+        TRACK_KEYWORDS = _KW_MAP.get(league_display_name, [])[:18] or [
             "손흥민", "이강인", "황희찬", "김민재", "홀란드", "살라",
             "엠바페", "벨링엄", "야말", "케인", "이적", "챔피언스리그",
-            "K리그", "EPL", "맨시티", "리버풀", "아스날",
         ]
         kw_counts = Counter()
         for a in all_articles:
