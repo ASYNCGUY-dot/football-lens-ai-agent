@@ -10,6 +10,8 @@ season_info.py
 시즌이 바뀌면 그 파일에서 갱신하면 된다.
 """
 
+from datetime import date as _date
+
 from components import _html
 from league_registry import LEAGUES as _LEAGUES
 

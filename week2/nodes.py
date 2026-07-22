@@ -411,7 +411,7 @@ def merge_node(state: FootballNewsState) -> dict:
 
     통합 구조:
         ┌─────────────────────────────────────┐
-        │         ⚽ Football Lens 일간 리포트  │
+        │  ⚽ Football Lens 일간/주간 리포트     │  (config.days_back>=7 → 주간)
         ├─────────────────────────────────────┤
         │ 1. 국내 축구 뉴스 요약 (Claude)       │
         │ 2. 해외 축구 뉴스 요약 (GPT-4o-mini) │
@@ -435,11 +435,18 @@ def merge_node(state: FootballNewsState) -> dict:
         league_label = _LEAGUE_SHORT_NAME.get(league_code, league_code)
         now_str = datetime.now(timezone.utc).strftime("%Y년 %m월 %d일 %H:%M UTC")
 
+        # 수집 기간(days_back)에 맞춰 "일간"/"주간"을 구분한다. 예전엔
+        # 항상 "일간 리포트"로 고정돼 있어서, 주간 보고서 탭(기간 7일
+        # 이상)에서도 제목만 "일간"이라고 나오는 불일치가 있었다
+        # (2026-07-22, 사용자 스크린샷으로 확인).
+        days_back = state.get("config", {}).get("days_back", 7)
+        report_kind = "주간 리포트" if days_back >= 7 else "일간 리포트"
+
         # ── 섹션별 텍스트 조립 ─────────────────────────────────
         sections = []
 
         # 헤더
-        sections.append(f"# ⚽ Football Lens 일간 리포트")
+        sections.append(f"# ⚽ Football Lens {report_kind}")
         sections.append(f"**생성일시**: {now_str} | **run_id**: {run_id}")
         sections.append("")
 

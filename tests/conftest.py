@@ -14,6 +14,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 for p in [
     ROOT,
     os.path.join(ROOT, "week1"),
+    os.path.join(ROOT, "week1", "collectors"),
     os.path.join(ROOT, "week2"),
     os.path.join(ROOT, "week3"),
     os.path.join(ROOT, "week3", "dashboard"),

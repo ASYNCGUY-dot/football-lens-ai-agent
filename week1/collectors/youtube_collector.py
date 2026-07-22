@@ -22,6 +22,7 @@ API 키 발급:
 """
 
 import os
+import re
 import sys
 import logging
 import requests
@@ -30,6 +31,18 @@ from dotenv import load_dotenv
 
 load_dotenv()
 logger = logging.getLogger(__name__)
+
+_KEY_PATTERN = re.compile(r"([?&]key=)[^&\s]+")
+
+
+def _redact_key(text: str) -> str:
+    """
+    요청 실패 예외 메시지에는 requests가 실제 요청 URL을 그대로 포함시키는데,
+    거기에 API 키가 평문으로 들어 있다. 이걸 그대로 logger.error에 넘기면
+    로그 파일에 키가 영구히 남는다 — 실제로 429 에러 로그에서 키가 노출된
+    사고가 있었다(2026-07-22). 로그에 찍기 전에 key= 값을 마스킹한다.
+    """
+    return _KEY_PATTERN.sub(r"\1***REDACTED***", str(text))
 
 _WEEK1_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _WEEK1_PATH not in sys.path:
@@ -156,7 +169,7 @@ class YouTubeCollector:
             return videos
 
         except requests.exceptions.RequestException as e:
-            logger.error(f"[YouTube] '{query}' 요청 오류: {e}")
+            logger.error(f"[YouTube] '{query}' 요청 오류: {_redact_key(e)}")
             return []
 
     def search_football_videos(
@@ -242,7 +255,7 @@ class YouTubeCollector:
             return details
 
         except Exception as e:
-            logger.error(f"[YouTube] 영상 상세 조회 오류: {e}")
+            logger.error(f"[YouTube] 영상 상세 조회 오류: {_redact_key(e)}")
             return {}
 
     @staticmethod

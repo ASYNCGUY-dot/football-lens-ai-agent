@@ -5,11 +5,26 @@ rss_collector.py
 RSS 피드를 통한 축구 뉴스 수집 모듈
 
 지원 소스 (국내):
-  - 스포츠조선, MBC스포츠, OSEN, 네이버스포츠, 풋볼리스트
+  - 스포츠조선, MBC스포츠, 풋볼리스트
 
 지원 소스 (해외):
   - BBC Sport Football, ESPN Soccer, The Guardian Football
-  - Goal.com, Sky Sports Football, UEFA, 90min
+  - Sky Sports Football, UEFA, 90min
+
+제외된 소스 (2026-07-22 조사):
+  - OSEN, 스포츠서울, Goal.com — 예전 RSS 주소가 404가 되어(실행 로그로
+    확인), 각 사이트 홈페이지 HTML에서 RSS 자동탐지 태그(<link rel=
+    "alternate" type="application/rss+xml">)를 찾아보고 흔한 경로 패턴도
+    여러 개 직접 요청해봤지만 셋 다 "rss"라는 문자열 자체가 홈페이지
+    어디에도 없고 후보 경로도 전부 404였다 — RSS 서비스를 아예
+    없앤 것으로 보인다(Goal.com은 실제로 몇 년 전부터 RSS를 공식
+    중단한 것으로 알려져 있음). 나중에 각 사이트가 RSS를 다시 열면
+    RSS_SOURCES에 추가하면 된다.
+  - 스포츠조선은 같은 방식으로 재조사해서 살렸다 — 예전 URL
+    (sports.chosun.com/rss/football.xml)은 죽었지만, 홈페이지에
+    RSS 자동탐지 태그가 남아있었고 그중 "스포츠조선 축구 기사" 전용
+    피드(www.sportschosun.com/rss/index_sc.htm)가 정상 동작해서
+    아래 목록에 새 주소로 다시 넣었다.
 
 사용법:
     from collectors.rss_collector import RSSCollector
@@ -40,27 +55,17 @@ logger = logging.getLogger(__name__)
 # =============================================
 RSS_SOURCES = [
     # ── 국내 ───────────────────────────────────────────────────
+    # OSEN/스포츠서울은 RSS를 아예 없앤 것으로 보여 계속 제외했다.
+    # rss_collector.py 모듈 docstring의 "제외된 소스" 항목 참고.
     {
         "name": "스포츠조선",
-        "url": "https://sports.chosun.com/rss/football.xml",
+        "url": "https://www.sportschosun.com/rss/index_sc.htm",
         "language": "ko",
         "category": "korean_media",
     },
     {
         "name": "MBC스포츠",
         "url": "https://imnews.imbc.com/rss/sports/index.xml",
-        "language": "ko",
-        "category": "korean_media",
-    },
-    {
-        "name": "OSEN",
-        "url": "https://osen.mt.co.kr/rss/sport.xml",
-        "language": "ko",
-        "category": "korean_media",
-    },
-    {
-        "name": "스포츠서울",
-        "url": "https://www.sportsseoul.com/rss/allArticle.xml",
         "language": "ko",
         "category": "korean_media",
     },
@@ -89,12 +94,7 @@ RSS_SOURCES = [
         "language": "en",
         "category": "international_media",
     },
-    {
-        "name": "Goal.com",
-        "url": "https://www.goal.com/feeds/en/news",
-        "language": "en",
-        "category": "international_media",
-    },
+    # Goal.com도 같은 이유로 제거(2026-07-22) — 404만 반환.
     {
         "name": "Sky Sports Football",
         "url": "https://www.skysports.com/rss/12040",
@@ -118,15 +118,10 @@ RSS_SOURCES = [
 # ── 2026 FIFA 월드컵 전용 RSS ────────────────────────────────
 WC_RSS_SOURCES = [
     # 국내 — 기존 피드에서 WC 뉴스도 커버되지만 명시적 WC 피드 추가
+    # OSEN(WC)은 RSS_SOURCES와 같은 이유로 계속 제외.
     {
         "name": "스포츠조선 (WC)",
-        "url": "https://sports.chosun.com/rss/football.xml",
-        "language": "ko",
-        "category": "worldcup",
-    },
-    {
-        "name": "OSEN (WC)",
-        "url": "https://osen.mt.co.kr/rss/sport.xml",
+        "url": "https://www.sportschosun.com/rss/index_sc.htm",
         "language": "ko",
         "category": "worldcup",
     },
@@ -161,12 +156,7 @@ WC_RSS_SOURCES = [
         "language": "en",
         "category": "worldcup",
     },
-    {
-        "name": "Goal.com (WC)",
-        "url": "https://www.goal.com/feeds/en/news",
-        "language": "en",
-        "category": "worldcup",
-    },
+    # Goal.com(WC)도 같은 이유로 제거(2026-07-22).
     {
         "name": "90min (WC)",
         "url": "https://www.90min.com/feed",
