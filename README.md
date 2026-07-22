@@ -1,4 +1,5 @@
 # ⚽ Football Lens AI Agent
+- DONGA KDT AI AGENT 1st persnal project
 
 > 축구 뉴스 자동 수집 · AI 분석 · 경기 예측 대시보드
 
