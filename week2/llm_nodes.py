@@ -394,6 +394,7 @@ def summarize_english_node(state: FootballNewsState) -> dict:
         "KL1": "the Korean K League 1", "PD": "La Liga", "BL1": "the Bundesliga",
         "SA": "Serie A", "FL1": "Ligue 1", "CL": "the UEFA Champions League",
         "BSA": "the Brazilian Serie A", "CLI": "the Copa Libertadores",
+        "ELC": "the EFL Championship", "DED": "the Dutch Eredivisie", "PPL": "the Portuguese Primeira Liga",
     }
     league_en = _LEAGUE_EN_NAME.get(league_code, "football")
 
@@ -646,6 +647,9 @@ def analyze_match_node(state: FootballNewsState) -> dict:
     _LEAGUE_NAMES = {
         "PL": "EPL 프리미어리그", "PD": "라리가", "BL1": "분데스리가",
         "SA": "세리에A", "FL1": "리그앙", "KL1": "K리그1",
+        "WC": "2026 FIFA 월드컵", "CL": "UEFA 챔피언스리그",
+        "BSA": "브라질 세리에A", "CLI": "코파 리베르타도레스",
+        "ELC": "EFL 챔피언십", "DED": "에레디비시", "PPL": "프리메이라리가",
     }
     league_display = _LEAGUE_NAMES.get(league_code, "축구 리그")
 

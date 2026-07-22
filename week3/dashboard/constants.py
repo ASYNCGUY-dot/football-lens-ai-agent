@@ -102,7 +102,13 @@ _LEAGUE_KEYWORDS: dict = {
     "챔피언스리그":       ["챔피언스리그", "champions league", "ucl",
                         "맨체스터시티", "레알마드리드", "바이에른뮌헨",
                         "manchester city", "real madrid", "bayern munich"],
-    "브라질세리에A":      ["브라질", "브라지레이랑", "brasileirao", "brazilian serie a", "brazil",
+    # "브라질"/"brazil" 단독 키워드는 뺐다 — 브라질 국가대표팀·월드컵
+    # 뉴스 등 브라질세리에A와 무관한 내용까지 다 걸려서(2026-07-22,
+    # 카세미루 월드컵 기사가 뜬 사례) week1/naver_collector.py의
+    # BRASILEIRAO_KEYWORDS와 맞췄다 — 수집 키워드와 필터 키워드가
+    # 다르면 또 같은 문제가 재발한다.
+    "브라질세리에A":      ["브라질세리에A", "브라질리안세리에A", "브라지레이랑", "브라질 축구",
+                        "brasileirao", "brazilian serie a",
                         "팔메이라스", "플라멩구", "플루미넨시", "브라간치누", "파라나엔세", "코린치안스",
                         "palmeiras", "flamengo", "fluminense", "bragantino"],
     # "산투스"/"santos"는 일부러 뺐다 — 흔한 선수 성씨와 겹쳐 오탐 발생
@@ -110,6 +116,15 @@ _LEAGUE_KEYWORDS: dict = {
     "코파리베르타도레스":  ["코파 리베르타도레스", "리베르타도레스", "copa libertadores", "libertadores",
                         "보카주니어스", "리버플레이트", "그레미우", "인테르나시오나우", "코린치안스",
                         "boca juniors", "river plate", "gremio", "internacional", "corinthians"],
+    "EFL 챔피언십":      ["efl챔피언십", "잉글랜드 2부", "championship",
+                        "리즈유나이티드", "셰필드유나이티드", "선덜랜드", "노리치시티", "웨스트브롬",
+                        "leeds united", "sheffield united", "sunderland", "norwich city", "west brom"],
+    "에레디비시":        ["에레디비시", "네덜란드 리그", "eredivisie",
+                        "아약스", "psv에인트호번", "페예노르트", "az알크마르",
+                        "ajax", "psv eindhoven", "feyenoord", "az alkmaar"],
+    "프리메이라리가":     ["프리메이라리가", "포르투갈 리그", "primeira liga",
+                        "벤피카", "포르투", "스포르팅cp", "브라가",
+                        "benfica", "porto", "sporting cp", "braga"],
 }
 
 # 리그명 → 표시용 이름 + 이모지
@@ -124,6 +139,9 @@ _LEAGUE_DISPLAY: dict = {
     "챔피언스리그":       "⭐ UEFA 챔피언스리그",
     "브라질세리에A":      "🇧🇷 브라질 세리에A",
     "코파리베르타도레스":  "🏆 코파 리베르타도레스",
+    "EFL 챔피언십":      "🏴󠁧󠁢󠁥󠁮󠁧󠁿 EFL 챔피언십",
+    "에레디비시":        "🇳🇱 에레디비시",
+    "프리메이라리가":     "🇵🇹 프리메이라리가",
 }
 
 # 리그명(사이드바 표시용) → football-data.org API 코드
@@ -141,6 +159,9 @@ _LEAGUE_API_CODE: dict = {
     "챔피언스리그": "CL",
     "브라질세리에A": "BSA",
     "코파리베르타도레스": "CLI",
+    "EFL 챔피언십": "ELC",
+    "에레디비시": "DED",
+    "프리메이라리가": "PPL",
 }
 
 # API 코드 → 리그명 (역매핑, _LEAGUE_KEYWORDS 등 표시명 기준 딕셔너리를

@@ -42,13 +42,25 @@ def render_sidebar() -> dict:
             options=[
                 "EPL (프리미어리그)", "2026 FIFA 월드컵", "K리그1", "라리가", "분데스리가",
                 "세리에A", "리그앙", "챔피언스리그", "브라질세리에A", "코파리베르타도레스",
+                "EFL 챔피언십", "에레디비시", "프리메이라리가",
             ],
             index=0,
             label_visibility="collapsed",
         )
 
-        st.caption(f"📅 수집 기간 — 최근 N일")
-        days_back = st.slider("기간", min_value=1, max_value=30, value=7, step=1, label_visibility="collapsed")
+        st.caption("📅 수집 기간")
+        # 예전엔 슬라이더(1~30일 바)였는데, 정확한 값을 클릭 한 번에
+        # 고르기 어렵다는 피드백에 따라 자주 쓰는 구간만 담은 드롭다운으로
+        # 바꿨다.
+        DAYS_BACK_OPTIONS = {
+            "최근 1일": 1, "최근 3일": 3, "최근 7일": 7,
+            "최근 14일": 14, "최근 30일": 30,
+        }
+        days_label = st.selectbox(
+            "기간", options=list(DAYS_BACK_OPTIONS.keys()), index=2,
+            label_visibility="collapsed",
+        )
+        days_back = DAYS_BACK_OPTIONS[days_label]
 
         st.caption("🌐 언어")
         lang_options = {"전체": None, "한국어만": "ko", "영어만": "en"}

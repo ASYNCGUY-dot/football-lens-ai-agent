@@ -191,6 +191,24 @@ LIBERTADORES_KEYWORDS = [
     # "산투스fc"/"santos fc"처럼 더 구체적인 형태로만 다시 추가할 것.
 ]
 
+CHAMPIONSHIP_KEYWORDS = [
+    "EFL챔피언십", "잉글랜드 2부", "championship",
+    "리즈유나이티드", "셰필드유나이티드", "선덜랜드", "노리치시티", "웨스트브롬",
+    "leeds united", "sheffield united", "sunderland", "norwich city", "west brom",
+]
+
+EREDIVISIE_KEYWORDS = [
+    "에레디비시", "네덜란드 리그", "eredivisie",
+    "아약스", "PSV에인트호번", "페예노르트", "AZ알크마르",
+    "ajax", "psv eindhoven", "feyenoord", "az alkmaar",
+]
+
+PRIMEIRA_LIGA_KEYWORDS = [
+    "프리메이라리가", "포르투갈 리그", "primeira liga",
+    "벤피카", "포르투", "스포르팅CP", "브라가",
+    "benfica", "porto", "sporting cp", "braga",
+]
+
 # league_code → 키워드 매핑
 LEAGUE_KEYWORD_MAP: dict = {
     "WC":  WC_KEYWORDS,
@@ -203,6 +221,9 @@ LEAGUE_KEYWORD_MAP: dict = {
     "CL":  CHAMPIONS_LEAGUE_KEYWORDS,
     "BSA": BRASILEIRAO_KEYWORDS,
     "CLI": LIBERTADORES_KEYWORDS,
+    "ELC": CHAMPIONSHIP_KEYWORDS,
+    "DED": EREDIVISIE_KEYWORDS,
+    "PPL": PRIMEIRA_LIGA_KEYWORDS,
 }
 
 # 네이버 뉴스 검색 API 엔드포인트

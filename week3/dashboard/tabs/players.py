@@ -70,6 +70,8 @@ def render_spotlight_players_tab(result: dict, league: str = "PL"):
         "WC": "2026 FIFA 월드컵", "PL": "EPL 프리미어리그",
         "PD": "라리가", "BL1": "분데스리가",
         "SA": "세리에A", "FL1": "리그앙", "KL1": "K리그1",
+        "CL": "UEFA 챔피언스리그", "BSA": "브라질 세리에A", "CLI": "코파 리베르타도레스",
+        "ELC": "EFL 챔피언십", "DED": "에레디비시", "PPL": "프리메이라리가",
     }
     league_name = _LEAGUE_NAME.get(league, league)
 

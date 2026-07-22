@@ -58,6 +58,9 @@ _LEAGUE_VIDEO_QUERIES: dict[str, list[str]] = {
     "CL":  ["챔피언스리그 하이라이트", "Champions League highlights"],
     "BSA": ["브라질세리에A 하이라이트", "Brasileirao highlights"],
     "CLI": ["코파리베르타도레스 하이라이트", "Copa Libertadores highlights"],
+    "ELC": ["EFL 챔피언십 하이라이트", "Championship highlights"],
+    "DED": ["에레디비시 하이라이트", "Eredivisie highlights"],
+    "PPL": ["프리메이라리가 하이라이트", "Primeira Liga highlights"],
 }
 
 

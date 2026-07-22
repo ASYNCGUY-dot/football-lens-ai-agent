@@ -139,6 +139,9 @@ _LEAGUE_META: dict = {
     "CL":  {"name": "UEFA 챔피언스리그",  "role": "UEFA 챔피언스리그 전문 축구 애널리스트",  "standings_label": "조별 순위", "section3": "토너먼트 전망"},
     "BSA": {"name": "브라질 세리에A",     "role": "브라질 세리에A 전문 축구 애널리스트",     "standings_label": "브라질 세리에A 순위 (상위 5팀)", "section3": "브라질 세리에A 순위 전망"},
     "CLI": {"name": "코파 리베르타도레스", "role": "코파 리베르타도레스 전문 축구 애널리스트", "standings_label": "조별 순위", "section3": "토너먼트 전망"},
+    "ELC": {"name": "EFL 챔피언십",       "role": "EFL 챔피언십 전문 축구 애널리스트",       "standings_label": "EFL 챔피언십 순위 (상위 5팀)", "section3": "EFL 챔피언십 순위 전망"},
+    "DED": {"name": "에레디비시",          "role": "에레디비시 전문 축구 애널리스트",          "standings_label": "에레디비시 순위 (상위 5팀)", "section3": "에레디비시 순위 전망"},
+    "PPL": {"name": "프리메이라리가",      "role": "프리메이라리가 전문 축구 애널리스트",      "standings_label": "프리메이라리가 순위 (상위 5팀)", "section3": "프리메이라리가 순위 전망"},
 }
 
 
