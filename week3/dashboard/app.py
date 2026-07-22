@@ -43,6 +43,12 @@ from dotenv import load_dotenv
 
 load_dotenv(os.path.join(ROOT, "week3", ".env"))
 load_dotenv(os.path.join(ROOT, "week2", ".env"))
+# week1/.env(NAVER/FOOTBALL_DATA/YOUTUBE_API_KEY 등 수집기 전용 키)는
+# 예전엔 안 불러오고 있었다 — week1/collectors/*.py 안의 bare
+# load_dotenv()는 cwd(프로젝트 루트) 기준 상위 탐색만 하기 때문에
+# 형제 디렉터리인 week1의 .env는 못 찾는다. 실제로 재현해서 확인함
+# (YOUTUBE_API_KEY를 week1/.env에 넣었는데 os.environ에 안 실렸었음).
+load_dotenv(os.path.join(ROOT, "week1", ".env"))
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
 YOUTUBE_VIDEOS_URL = "https://www.googleapis.com/youtube/v3/videos"
 
-# 기본 검색 키워드 (축구 하이라이트 위주)
+# 기본 검색 키워드 (축구 하이라이트 위주) — league_code를 안 넘겼을 때만 쓴다.
 DEFAULT_QUERIES = [
     "EPL highlights this week",
     "Premier League goals",
@@ -42,6 +42,28 @@ DEFAULT_QUERIES = [
     "K리그 하이라이트",
     "Champions League highlights",
 ]
+
+# 리그별 영상 검색 쿼리 — 예전엔 리그 선택과 무관하게 항상 위 DEFAULT_QUERIES를
+# 그대로 써서, K리그를 선택해도 EPL/챔피언스리그 하이라이트가 섞여 나왔다
+# (Naver 뉴스 수집기의 LEAGUE_KEYWORD_MAP과 동일한 종류의 버그였다). 같은
+# LEAGUE_KEYWORD_MAP을 재사용해 리그별 쿼리를 만든다.
+_LEAGUE_VIDEO_QUERIES: dict[str, list[str]] = {
+    "WC":  ["2026 FIFA 월드컵 하이라이트", "World Cup 2026 highlights", "월드컵 한국 하이라이트"],
+    "PL":  ["EPL highlights this week", "Premier League goals", "손흥민 하이라이트"],
+    "KL1": ["K리그 하이라이트", "K리그1 하이라이트", "K League highlights"],
+    "PD":  ["라리가 하이라이트", "La Liga highlights"],
+    "BL1": ["분데스리가 하이라이트", "Bundesliga highlights"],
+    "SA":  ["세리에A 하이라이트", "Serie A highlights"],
+    "FL1": ["리그앙 하이라이트", "Ligue 1 highlights"],
+    "CL":  ["챔피언스리그 하이라이트", "Champions League highlights"],
+    "BSA": ["브라질세리에A 하이라이트", "Brasileirao highlights"],
+    "CLI": ["코파리베르타도레스 하이라이트", "Copa Libertadores highlights"],
+}
+
+
+def get_league_video_queries(league_code: str) -> list[str]:
+    """리그 코드에 맞는 YouTube 검색 쿼리를 반환한다. 없으면 DEFAULT_QUERIES."""
+    return _LEAGUE_VIDEO_QUERIES.get(league_code, DEFAULT_QUERIES)
 
 
 class YouTubeCollector:
@@ -144,6 +166,7 @@ class YouTubeCollector:
         self,
         queries: list[str] = None,
         max_per_query: int = 3,
+        league_code: str = None,
     ) -> list[dict]:
         """
         여러 키워드로 YouTube 영상을 검색하고 중복을 제거합니다.
@@ -151,16 +174,22 @@ class YouTubeCollector:
         Parameters
         ----------
         queries : list[str], optional
-            검색 키워드 목록. 기본값: DEFAULT_QUERIES
+            검색 키워드 목록을 직접 지정하고 싶을 때만 쓴다. 지정하면
+            league_code는 무시된다.
         max_per_query : int
             키워드당 최대 영상 수
+        league_code : str, optional
+            선택된 리그 코드(예: "KL1"). queries를 안 넘기면 이 리그에
+            맞는 쿼리(get_league_video_queries)를 자동으로 쓴다 — 예전엔
+            리그와 무관하게 항상 DEFAULT_QUERIES(EPL 위주)를 써서 K리그를
+            선택해도 EPL/챔피언스리그 영상이 섞여 나왔다.
 
         Returns
         -------
         list[dict]
             중복 제거된 영상 메타데이터 목록
         """
-        queries = queries or DEFAULT_QUERIES
+        queries = queries or get_league_video_queries(league_code)
         all_videos = []
         seen_ids = set()
 

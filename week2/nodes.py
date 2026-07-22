@@ -203,7 +203,7 @@ def collect_node(state: FootballNewsState) -> dict:
     try:
         from collectors.youtube_collector import YouTubeCollector
         yt_collector = YouTubeCollector()
-        youtube_videos = yt_collector.search_football_videos(max_per_query=3)
+        youtube_videos = yt_collector.search_football_videos(max_per_query=3, league_code=league_code)
         logger.info(f"[collect_node] YouTube 수집: {len(youtube_videos)}건")
     except Exception as e:
         msg = f"YouTube 수집 오류: {e}"
