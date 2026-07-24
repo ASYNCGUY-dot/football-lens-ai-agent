@@ -30,6 +30,14 @@ def render_standings_tab(result: dict, league: str = "PL"):
 """)
         return
 
+    # 코파리베르타도레스처럼 조별리그(Group A~H)로 진행되는 대회는 팀마다
+    # group 필드가 채워져 있다(2026-07-24, football_data_collector.py의
+    # get_standings() 참고 — 예전엔 이 필드 자체가 없어서 A조 4팀만 반환
+    # 하고 나머지 28팀을 통째로 버렸었다). group이 하나라도 있으면 조별로
+    # 나눠서 보여주고, 없으면(대부분의 단일 리그) 기존처럼 표 하나로
+    # 합쳐서 보여준다.
+    groups_present = sorted({s["group"] for s in standings if s.get("group")})
+
     try:
         import pandas as pd
         import plotly.express as px
@@ -44,15 +52,34 @@ def render_standings_tab(result: dict, league: str = "PL"):
             "goal_diff": "득실차", "points": "승점", "form": "최근 5경기",
         }
         available_cols = [c for c in display_cols if c in df.columns]
-        df_display = df[available_cols].rename(columns=col_labels)
 
-        espn_section("📋", f"{league_name} Standings")
-        st.dataframe(df_display, use_container_width=True, hide_index=True)
+        if groups_present:
+            espn_section("📋", f"{league_name} Standings — {len(groups_present)}개 조")
+            # 2열로 배치 (조가 많아도 화면을 세로로 너무 길게 만들지 않도록)
+            for i in range(0, len(groups_present), 2):
+                cols = st.columns(2)
+                for col, group_name in zip(cols, groups_present[i:i + 2]):
+                    with col:
+                        st.caption(f"**{group_name}**")
+                        group_df = df[df["group"] == group_name].sort_values("rank")
+                        st.dataframe(
+                            group_df[available_cols].rename(columns=col_labels),
+                            use_container_width=True, hide_index=True,
+                        )
+        else:
+            espn_section("📋", f"{league_name} Standings")
+            df_display = df[available_cols].rename(columns=col_labels)
+            st.dataframe(df_display, use_container_width=True, hide_index=True)
 
         if "team_name" in df.columns and "points" in df.columns:
             espn_section("📊", "Top 10 Points")
+            # head(10)은 리스트 순서(=조 순서) 그대로 앞 10개를 뽑아서,
+            # 조별리그에서는 실제 승점 상위 10팀이 아니라 앞쪽 조 몇 개만
+            # 나올 수 있었다. points 기준으로 명시 정렬해서 group 유무와
+            # 무관하게 항상 진짜 승점 top10이 나오도록 했다.
+            top10 = df.sort_values("points", ascending=False).head(10)
             fig = px.bar(
-                df.head(10),
+                top10,
                 x="team_name", y="points",
                 color="points",
                 color_continuous_scale=[[0, "#F5C6C6"], [0.5, "#FF4444"], [1, "#CC0000"]],
@@ -75,9 +102,10 @@ def render_standings_tab(result: dict, league: str = "PL"):
 
     except ImportError:
         for team in standings[:10]:
+            tag = f"{league_name} · {team['group']}" if team.get("group") else league_name
             _html(f"""
 <div class="espn-card">
-<div class="espn-card-tag">{league_name} Standings</div>
+<div class="espn-card-tag">{tag} Standings</div>
 <div class="espn-card-title"><span style="color:#CC0000;margin-right:10px;">{team.get('rank','?')}위</span>{team.get('team_name','?')}</div>
 <div class="espn-card-meta"><span class="ebadge eb-red">{team.get('points',0)}pts</span><span class="ebadge eb-dark">{team.get('won',0)}W</span><span class="ebadge eb-gray">{team.get('draw',0)}D</span><span>{team.get('lost',0)}L</span></div>
 </div>

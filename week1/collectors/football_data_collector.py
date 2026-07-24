@@ -197,7 +197,16 @@ class FootballDataCollector:
     # =============================================
     def get_standings(self, season: int = None) -> list[dict]:
         """
-        EPL 순위표를 가져옵니다.
+        순위표를 가져옵니다.
+
+        코파리베르타도레스처럼 조별리그(8개 조)로 진행되는 대회는 API가
+        standings 배열에 조(Group A~H)별로 항목을 따로 준다. 예전엔
+        standings[0]만 가져와서 첫 조 4팀만 반환하고 나머지 28팀을 통째로
+        버렸다(2026-07-24 발견 — 라리가/분데스리가/세리에A/리그앙/
+        브라질세리에A/EFL챔피언십/에레디비시/프리메이라리가/챔피언스리그는
+        전부 단일 그룹이라 문제없었고, CLI만 걸림). 이제 모든 그룹을
+        순회해서 각 팀에 group 필드를 붙여 전부 반환한다 — 단일 리그는
+        group이 None으로 채워지고 동작이 예전과 동일하다.
 
         Parameters
         ----------
@@ -208,7 +217,7 @@ class FootballDataCollector:
         -------
         list[dict]
             각 팀의 순위 정보. 각 항목:
-            - rank        : 순위
+            - rank        : 조 내 순위 (조별리그면 조 안에서의 순위)
             - team_id     : 팀 고유 ID
             - team_name   : 팀 이름
             - played      : 경기 수
@@ -220,6 +229,7 @@ class FootballDataCollector:
             - goal_diff   : 득실차
             - points      : 승점
             - form        : 최근 5경기 결과 (예: "WWDLW")
+            - group       : 조 이름 (예: "Group A") — 단일 리그면 None
         """
         params = {"season": season} if season else {}
         data = self._request(f"/competitions/{self.competition}/standings", params)
@@ -229,24 +239,28 @@ class FootballDataCollector:
 
         standings = []
         try:
-            table = data["standings"][0]["table"]  # TOTAL 순위표
-            for row in table:
-                team = row.get("team", {})
-                standings.append({
-                    "rank": row.get("position"),
-                    "team_id": team.get("id"),
-                    "team_name": team.get("name"),
-                    "played": row.get("playedGames"),
-                    "won": row.get("won"),
-                    "draw": row.get("draw"),
-                    "lost": row.get("lost"),
-                    "goals_for": row.get("goalsFor"),
-                    "goals_against": row.get("goalsAgainst"),
-                    "goal_diff": row.get("goalDifference"),
-                    "points": row.get("points"),
-                    "form": row.get("form", ""),
-                    "collected_at": datetime.now(timezone.utc),
-                })
+            for group_entry in data.get("standings", []):
+                if group_entry.get("type") != "TOTAL":
+                    continue
+                group_name = group_entry.get("group")  # 조별리그가 아니면 None
+                for row in group_entry.get("table", []):
+                    team = row.get("team", {})
+                    standings.append({
+                        "rank": row.get("position"),
+                        "team_id": team.get("id"),
+                        "team_name": team.get("name"),
+                        "played": row.get("playedGames"),
+                        "won": row.get("won"),
+                        "draw": row.get("draw"),
+                        "lost": row.get("lost"),
+                        "goals_for": row.get("goalsFor"),
+                        "goals_against": row.get("goalsAgainst"),
+                        "goal_diff": row.get("goalDifference"),
+                        "points": row.get("points"),
+                        "form": row.get("form", ""),
+                        "group": group_name,
+                        "collected_at": datetime.now(timezone.utc),
+                    })
         except (KeyError, IndexError) as e:
             logger.error(f"순위표 파싱 오류: {e}")
 
