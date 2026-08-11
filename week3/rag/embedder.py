@@ -162,9 +162,22 @@ class ArticleEmbedder:
             self._model = cached
         return self._model
 
+    def _is_e5_model(self) -> bool:
+        """
+        e5 계열 모델인지 판별한다.
+
+        e5 계열(intfloat/multilingual-e5-* 등)은 학습할 때 문서에는
+        "passage: ", 질의에는 "query: " 접두사를 붙여서 훈련됐기 때문에,
+        검색할 때도 똑같이 붙여줘야 제 성능이 나온다. 접두사를 빼먹으면
+        모델이 조용히 나쁜 성능으로 동작한다(에러가 안 나서 알아채기
+        어렵다). 다른 모델(all-MiniLM 등)은 접두사가 필요 없고 붙이면
+        오히려 방해가 되므로, 모델명으로 구분한다.
+        """
+        return "e5" in self.model_name.lower()
+
     def _embed_texts(self, texts: list[str]) -> list[list[float]]:
         """
-        텍스트 목록을 벡터로 변환합니다.
+        텍스트 목록을 벡터로 변환합니다 (문서/기사용).
 
         Parameters
         ----------
@@ -178,6 +191,8 @@ class ArticleEmbedder:
         """
         try:
             model = self._get_model()
+            if self._is_e5_model():
+                texts = [f"passage: {t}" for t in texts]
             embeddings = model.encode(texts, show_progress_bar=True)
             return embeddings.tolist()
         except Exception as e:
@@ -394,7 +409,9 @@ class ArticleEmbedder:
         """
         try:
             model = self._get_model()
-            query_embedding = model.encode([query]).tolist()
+            # e5 계열은 질의에 "query: " 접두사가 필요하다(_is_e5_model 참고).
+            query_text = f"query: {query}" if self._is_e5_model() else query
+            query_embedding = model.encode([query_text]).tolist()
 
             # 필터 조건 구성
             where = {}
