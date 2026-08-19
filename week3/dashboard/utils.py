@@ -228,20 +228,9 @@ def get_rag_search_results(query: str, language: str = None) -> tuple[list, str 
 
 
 
-def send_report_email(report_text: str, recipients: list[str]) -> bool:
-    """보고서를 이메일로 발송합니다."""
-    try:
-        from week3.mailer.email_sender import EmailSender
-        EmailSender().send_report(
-            report_markdown=report_text,
-            recipients=recipients,
-            subject=f"⚽ Football Lens 보고서 - {datetime.now().strftime('%Y-%m-%d')}",
-        )
-        return True
-    except Exception as e:
-        logger.error(f"이메일 오류: {e}")
-        st.error(f"이메일 발송 실패: {e}")
-        return False
+# 이메일 발송 기능(send_report_email)은 제거했다(2026-08-19) — SMTP 계정이
+# 설정되지 않아 실제로 동작한 적이 없고, 미설정 상태에서 원인을 알기 어려운
+# 인코딩 에러만 냈다. 자세한 경위는 week3/dashboard/app.py의 tab_defs 주석 참고.
 
 
 # =============================================

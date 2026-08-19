@@ -75,7 +75,6 @@ from tabs.worldcup import render_worldcup_tab
 from tabs.players import render_spotlight_players_tab
 from tabs.youtube import render_youtube_tab
 from tabs.rag_search import render_rag_search_tab
-from tabs.email import render_email_tab
 
 
 def main():
@@ -228,6 +227,12 @@ def main():
     # 리그에서는 항상 비어있거나 EPL 관점으로 나왔다. 모든 리그로 일반화
     # 하는 것보다 기능 자체를 빼는 게 낫다는 사용자 결정(2026-07-22) —
     # week2/graph.py에서 노드 자체도 뺐다.
+    # 이메일 발송 탭도 같은 이유로 제거했다(2026-08-19) — SMTP 계정
+    # (SMTP_USER/SMTP_PASSWORD)이 설정되지 않아 실제로 동작한 적이 없고,
+    # 미설정 상태에서 smtplib이 자격증명을 ASCII로 인코딩하다 실패해
+    # 'ascii' codec can't encode characters라는 원인을 알기 어려운
+    # 에러만 냈다. 동작하지 않는 기능을 UI에 남겨두는 것보다 빼는 게
+    # 낫다는 사용자 결정. week3/mailer/·tabs/email.py도 함께 삭제했다.
     tab_defs = [
         ("daily", "⚽  일간 보고서", True),
         ("weekly", "📊  주간 보고서", True),
@@ -238,7 +243,6 @@ def main():
         ("player", "⭐  주목할 선수", True),
         ("youtube", "▶️  YouTube", True),
         ("rag_search", "🔍  RAG 검색", True),
-        ("email", "📧  이메일 발송", True),
     ]
     visible = [(key, label) for key, label, shown in tab_defs if shown]
     tab_objs = st.tabs([label for _, label in visible])
@@ -271,9 +275,6 @@ def main():
     if "rag_search" in tabs:
         with tabs["rag_search"]:
             render_rag_search_tab(result)
-    if "email" in tabs:
-        with tabs["email"]:
-            render_email_tab(result)
 
 
 if __name__ == "__main__":

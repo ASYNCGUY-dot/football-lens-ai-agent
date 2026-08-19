@@ -8,7 +8,7 @@ Football Lens 전체 통합 테스트
     1. [week3] RAG - ArticleEmbedder (임베딩 + 검색)
     2. [week3] RAG - rag_search_node (LangGraph 노드)
     3. [week3] insight_node (통합 인사이트 보고서 생성)
-    4. [week3] EmailSender (SMTP 연결 + HTML 변환)
+    4. (이메일 모듈 테스트 — 기능 제거로 삭제됨, 2026-08-19)
     5. [week2] 전체 파이프라인 통합 흐름 (collect → preprocess → classify → LLM → merge → RAG → insight)
     6. [week1] DB 스키마 테이블 존재 여부
 
@@ -242,60 +242,11 @@ class TestInsightNode(unittest.TestCase):
 
 
 # =============================================
-# 4. 이메일 모듈 테스트
+# 4. (이메일 모듈 테스트는 제거됨)
 # =============================================
-
-class TestEmailSender(unittest.TestCase):
-    """EmailSender 클래스 테스트 (SMTP 실제 연결은 옵션)"""
-
-    def test_import(self):
-        """EmailSender import 확인"""
-        try:
-            from week3.mailer.email_sender import EmailSender
-            self.assertTrue(True)
-        except ImportError as e:
-            self.fail(f"EmailSender import 실패: {e}")
-
-    def test_raises_without_credentials(self):
-        """SMTP 인증 정보 없을 때 ValueError 발생 확인"""
-        try:
-            from week3.mailer.email_sender import EmailSender
-        except ImportError:
-            self.skipTest("import 불가")
-
-        import unittest.mock as mock
-        with mock.patch.dict(os.environ, {"SMTP_USER": "", "SMTP_PASSWORD": ""}):
-            with self.assertRaises(ValueError):
-                EmailSender()
-
-    def test_markdown_to_html_conversion(self):
-        """마크다운 → HTML 변환 기본 동작 확인"""
-        try:
-            from week3.mailer.email_sender import _markdown_to_html_body
-        except ImportError:
-            self.skipTest("import 불가")
-
-        md = "# 제목\n\n## 섹션\n\n**굵은 글씨** 테스트\n\n- 항목1\n- 항목2"
-        html = _markdown_to_html_body(md)
-        # email_sender는 HTML 이메일 호환성을 위해 h1/h2 대신 스타일 div를 사용함
-        self.assertIn("제목", html, "h1 내용이 html에 없음")
-        self.assertIn("섹션", html, "h2 내용이 html에 없음")
-        self.assertIn("<strong", html, "strong 태그 없음")
-        self.assertIn("<html", html, "html 태그 없음")
-
-    def test_smtp_connection(self):
-        """SMTP 연결 테스트 (자격증명 있을 때만 실행)"""
-        try:
-            from week3.mailer.email_sender import EmailSender
-        except ImportError:
-            self.skipTest("import 불가")
-
-        if not os.getenv("SMTP_USER") or not os.getenv("SMTP_PASSWORD"):
-            self.skipTest("SMTP 자격증명 없음 (건너뜀)")
-
-        sender = EmailSender()
-        result = sender.test_connection()
-        self.assertTrue(result, "SMTP 연결 실패")
+# 이메일 발송 기능 자체를 제거하면서(2026-08-19) 관련 테스트도 함께
+# 뺐다. SMTP 계정이 설정되지 않아 실제로 동작한 적이 없는 기능이었다 —
+# 자세한 경위는 week3/dashboard/app.py의 tab_defs 주석 참고.
 
 
 # =============================================
@@ -540,7 +491,6 @@ def run_tests():
         TestArticleEmbedder,
         TestRagSearchNode,
         TestInsightNode,
-        TestEmailSender,
         TestFullPipeline,
         TestDatabaseSchema,
     ]
