@@ -1,4 +1,7 @@
 # ⚽ Football Lens AI Agent
+
+> **포트폴리오 안내:** [문제 · 구현 · 검증 근거 · 한계](docs/PORTFOLIO_OVERVIEW.md)
+
 - DONGA KDT AI AGENT 2nd persnal project
 
 > 축구 뉴스 자동 수집 · AI 분석 · 경기 예측 대시보드
